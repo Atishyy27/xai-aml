@@ -1,0 +1,12 @@
+# Ignore generated dataset files
+SynthDataGen/*.csv
+
+# Ignore the entire Neo4j database data directory
+neo4j/data/
+
+# Ignore frontend dependencies
+frontend/node_modules/
+
+# Python cache
+__pycache__/
+*.pyc
