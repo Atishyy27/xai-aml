@@ -1,0 +1,15 @@
+# Core ML & Data Libraries
+torch
+pandas
+numpy
+scikit-learn
+
+# Graph Neural Network Library (choose one or include both)
+dgl
+# torch-geometric
+
+# Database Connector
+neo4j
+
+# Explainable AI
+shap
