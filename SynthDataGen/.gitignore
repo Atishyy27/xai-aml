@@ -1,0 +1,2 @@
+# Ignore generated dataset files
+SynthDataGen/*.csv

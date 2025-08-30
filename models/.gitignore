@@ -1,0 +1,10 @@
+# Python cache
+__pycache__/
+
+# Trained models
+*.pth
+*.pt
+*.onnx
+
+# Local data files
+*.csv
