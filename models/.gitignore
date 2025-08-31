@@ -1,5 +1,14 @@
 # Python cache
 __pycache__/
+*.py[cod]
+
+# Jupyter
+.ipynb_checkpoints
+
+# Virtual environment
+venv/
+env/
+.venv/
 
 # Trained models
 *.pth
@@ -8,3 +17,14 @@ __pycache__/
 
 # Local data files
 *.csv
+*.xlsx
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Models
+*.pkl

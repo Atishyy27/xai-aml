@@ -4,6 +4,10 @@ from faker import Faker
 import random
 from datetime import datetime, timedelta
 
+SEED = 42
+np.random.seed(SEED)
+random.seed(SEED)
+
 # --- Config ---
 NUM_CUSTOMERS = 25000
 NUM_ACCOUNTS = 50000
