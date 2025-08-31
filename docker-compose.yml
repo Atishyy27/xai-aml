@@ -10,3 +10,10 @@ services:
       - ./neo4j/data:/data
     environment:
       - NEO4J_AUTH=neo4j/password123
+
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    depends_on:
+      - database
