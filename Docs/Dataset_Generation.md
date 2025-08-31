@@ -1,4 +1,4 @@
-# PRD: Synthetic Transaction Graph Dataset
+# Synthetic Transaction Graph Dataset
 
 ## 1.0 Objective
 This document outlines the requirements, methodology, and technical specifications for the synthetic dataset used in Project SENTINEL. The primary objective is to create a high-fidelity, graph-structured financial dataset that is realistic, challenging, and directly relevant for training and validating advanced Anti-Money Laundering (AML) AI models.

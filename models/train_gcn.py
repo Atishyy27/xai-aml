@@ -40,12 +40,8 @@ def build_graph_from_neo4j(uri, user, password):
 
 # --- 3. Training Script ---
 if __name__ == "__main__":
-    # Load features and labels
     features_df = pd.read_csv("account_features.csv")
     
-    # Fetch ground truth labels (this is a simplified example)
-    # In a real scenario, you'd query the 'is_illicit' property from your graph
-    # For now, we simulate this by joining with a hypothetical labels file
     labels_df = pd.read_csv('../SynthDataGen/transactions.csv')
     illicit_accounts = set(labels_df[labels_df['is_illicit'] == 1]['source_account'])
     features_df['label'] = features_df['account_id'].apply(lambda x: 1 if x in illicit_accounts else 0)

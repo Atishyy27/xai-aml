@@ -1,0 +1,39 @@
+# .dockerignore
+
+# Git files
+.git
+.gitignore
+
+# Docker specific files
+Dockerfile
+
+# Python specific
+**/.venv
+**/__pycache__
+*.pyc
+
+# Models
+models/account_features.csv
+models/venv
+models/__pycache__
+
+# Frontend dependencies and build output
+frontend/node_modules
+frontend/dist
+
+# Neo4j database data
+neo4j/data
+
+# Documentation and data generation scripts
+Docs
+SynthDataGen
+
+# IDE and OS specific
+.vscode
+.idea
+*.DS_Store
+
+# Log and output files
+*.log
+*.txt
+*.md

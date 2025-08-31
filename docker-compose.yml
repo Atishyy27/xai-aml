@@ -12,7 +12,9 @@ services:
       - NEO4J_AUTH=neo4j/password123
 
   backend:
-    build: ./backend
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
     ports:
       - "8000:8000"
     depends_on:
