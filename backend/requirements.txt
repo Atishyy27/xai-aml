@@ -1,3 +1,18 @@
+# backend/requirements.txt
+
+# FastAPI server
 fastapi
 uvicorn[standard]
 neo4j
+
+# Core Data & ML Libraries (compatible versions)
+numpy<2
+pandas
+scikit-learn
+shap
+torchdata
+
+# AI Model Dependencies (CPU versions for Docker)
+# This will install the correct CPU-only versions inside the container
+torch --extra-index-url https://download.pytorch.org/whl/cpu
+dgl --extra-index-url https://data.dgl.ai/wheels/repo.html
