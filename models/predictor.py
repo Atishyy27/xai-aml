@@ -24,7 +24,7 @@ try:
     ae_model.eval()
 
     # Build the graph from Neo4j
-    graph, node_map = build_graph_from_neo4j("bolt://localhost:7687", "neo4j", "password123")
+    graph, node_map = build_graph_from_neo4j("neo4j+s://80028196.databases.neo4j.io", "neo4j", "55TKfw4m1GyHYDmE_Rv29qkM688YOj1ifOXEiopKAkU")
     graph = dgl.add_self_loop(graph)
 
     # Align features with the graph's node order

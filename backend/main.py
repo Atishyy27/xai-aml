@@ -31,8 +31,8 @@ app.add_middleware(
 )
 
 # --- Neo4j Database Connection ---
-URI = "bolt://localhost:7687"
-AUTH = ("neo4j", "password123") 
+URI = "neo4j+s://80028196.databases.neo4j.io"
+AUTH = ("neo4j", "55TKfw4m1GyHYDmE_Rv29qkM688YOj1ifOXEiopKAkU") 
 
 class Neo4jApp:
     def __init__(self, uri, auth):
