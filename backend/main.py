@@ -10,7 +10,6 @@ import os
 # Ensures the backend can find the 'models' directory
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from models.predictor import get_prediction_and_explanation, get_top_suspicious_networks
-
 app = FastAPI(
     title="XAI-AML Detection API",
     description="Live API for detecting and explaining money laundering networks.",
@@ -32,7 +31,7 @@ app.add_middleware(
 )
 
 # --- Neo4j Database Connection ---
-URI = "bolt://database:7687"
+URI = "bolt://localhost:7687"
 AUTH = ("neo4j", "password123") 
 
 class Neo4jApp:
