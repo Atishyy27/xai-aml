@@ -22,7 +22,7 @@ frontend/dist/
 
 # === Logs and output ===
 *.log
-*.txt
+# *.txt
 
 # === Build artifacts ===
 *.egg
