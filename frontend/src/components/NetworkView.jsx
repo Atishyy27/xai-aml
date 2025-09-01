@@ -33,7 +33,7 @@ const NetworkView = ({ networkId }) => {
 
   useEffect(() => {
     if (graphRef.current) {
-        graphRef.current.zoomToFit(400, 100);
+      graphRef.current.zoomToFit(400, 100);
     }
   }, [graphData]);
 
@@ -42,40 +42,40 @@ const NetworkView = ({ networkId }) => {
       <div className="left-panel">
         <Link to="/" className="back-link"> &larr; Back to Dashboard</Link>
         <div className="explanation-container">
-            <h3>XAI Report for Account: {networkId}</h3>
-            {isLoading ? (
-                <p>Loading explanation...</p>
-            ) : explanation ? (
-                <div>
-                <p><strong>Summary:</strong> {explanation.summary}</p>
-                <strong>Primary Risk Contributors:</strong>
-                <ul>
-                    {explanation.feature_contributions.map((item, index) => (
-                    <li key={index}>
-                        {item.feature}: <strong>{`+${(item.impact * 100).toFixed(0)}% risk`}</strong>
-                    </li>
-                    ))}
-                </ul>
-                </div>
-            ) : (
-                <p>No explanation available for this node.</p>
-            )}
+          <h3>XAI Report for Account: {networkId}</h3>
+          {isLoading ? (
+            <p>Loading explanation...</p>
+          ) : (explanation && explanation.feature_contributions) ? ( // <-- MORE ROBUST CHECK
+            <div>
+              <p><strong>Summary:</strong> {explanation.summary}</p>
+              <strong>Primary Risk Contributors:</strong>
+              <ul>
+                {explanation.feature_contributions.map((item, index) => (
+                  <li key={index}>
+                    {item.feature.replace(/_/g, ' ')}: <strong>{`+${(item.impact * 100).toFixed(0)}% risk`}</strong>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <p>Explanation data is not available for this account.</p>
+          )}
         </div>
       </div>
       <div className="right-panel">
         {isLoading ? (
-            <div className="loading-message">Loading graph...</div>
+          <div className="loading-message">Loading graph...</div>
         ) : (
-            <ForceGraph2D
-                ref={graphRef}
-                graphData={graphData}
-                nodeLabel="id"
-                nodeAutoColorBy="id"
-                linkLabel={link => `₹${link.amount.toLocaleString('en-IN')}`}
-                linkDirectionalArrowLength={3.5}
-                linkDirectionalArrowRelPos={1}
-                linkCurvature={0.25}
-            />
+          <ForceGraph2D
+            ref={graphRef}
+            graphData={graphData}
+            nodeLabel="id"
+            nodeAutoColorBy="id"
+            linkLabel={link => `₹${link.amount.toLocaleString('en-IN')}`}
+            linkDirectionalArrowLength={3.5}
+            linkDirectionalArrowRelPos={1}
+            linkCurvature={0.25}
+          />
         )}
       </div>
     </div>

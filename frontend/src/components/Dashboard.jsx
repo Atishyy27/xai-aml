@@ -27,7 +27,7 @@ const Dashboard = () => {
   }, []);
 
   const handleNetworkSelect = (network) => {
-    navigate(`/network/${network.network_id}`);
+    navigate(`/network/${network.account_id}`);
   };
 
   if (isLoading) {
@@ -53,11 +53,11 @@ const Dashboard = () => {
           <tbody>
             {networks.map((network) => (
               <tr
-                key={network.network_id}
+                key={network.account_id}
                 onClick={() => handleNetworkSelect(network)}
                 className="network-row"
               >
-                <td>{network.network_id}</td>
+                <td>{network.account_id}</td>
                 <td>{(network.risk_score * 100).toFixed(1)}%</td>
                 <td>{network.pattern_type}</td>
               </tr>
