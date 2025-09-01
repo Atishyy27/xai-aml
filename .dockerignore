@@ -4,9 +4,6 @@
 .git
 .gitignore
 
-# Docker specific files
-Dockerfile
-
 # Python specific
 **/.venv
 **/__pycache__
