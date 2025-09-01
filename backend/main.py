@@ -9,7 +9,7 @@ import os
 
 # Ensures the backend can find the 'models' directory
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from .models.predictor import get_prediction_and_explanation, get_top_suspicious_networks
+from models.predictor import get_prediction_and_explanation, get_top_suspicious_networks
 
 app = FastAPI(
     title="XAI-AML Detection API",
