@@ -3,9 +3,9 @@ from neo4j import GraphDatabase
 import time
 
 # --- Config ---
-NEO4J_URI = "bolt://localhost:7687"
+NEO4J_URI = "neo4j+s://80028196.databases.neo4j.io"
 NEO4J_USER = "neo4j"
-NEO4J_PASSWORD = "password123"
+NEO4J_PASSWORD = "55TKfw4m1GyHYDmE_Rv29qkM688YOj1ifOXEiopKAkU"
 ACCOUNTS_CSV_PATH = "accounts.csv"
 TRANSACTIONS_CSV_PATH = "transactions.csv"
 

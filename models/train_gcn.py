@@ -47,7 +47,7 @@ if __name__ == "__main__":
     features_df['label'] = features_df['account_id'].apply(lambda x: 1 if x in illicit_accounts else 0)
 
     # Build DGL graph
-    graph, node_map = build_graph_from_neo4j("bolt://localhost:7687", "neo4j", "password123")
+    graph, node_map = build_graph_from_neo4j("neo4j+s://80028196.databases.neo4j.io", "neo4j", "55TKfw4m1GyHYDmE_Rv29qkM688YOj1ifOXEiopKAkU")
 
     # Add self-loops to the graph to handle 0-in-degree nodes
     graph = dgl.add_self_loop(graph)
