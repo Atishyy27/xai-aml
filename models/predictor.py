@@ -7,8 +7,8 @@ import pandas as pd
 import numpy as np
 import joblib
 
-from train_autoencoder import Autoencoder
-from train_gcn import GCN, build_graph_from_neo4j
+from .train_autoencoder import Autoencoder
+from .train_gcn import GCN, build_graph_from_neo4j
 
 print("Loading AI Core...")
 
