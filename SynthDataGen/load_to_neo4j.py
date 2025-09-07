@@ -1,11 +1,14 @@
 import pandas as pd
 from neo4j import GraphDatabase
 import time
+import os
+from dotenv import load_dotenv
 
 # --- Config ---
-NEO4J_URI = "neo4j+s://80028196.databases.neo4j.io"
-NEO4J_USER = "neo4j"
-NEO4J_PASSWORD = "55TKfw4m1GyHYDmE_Rv29qkM688YOj1ifOXEiopKAkU"
+load_dotenv()
+NEO4J_URI = os.getenv("NEO4J_URI")
+NEO4J_USER = os.getenv("NEO4J_USER")
+NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD")
 ACCOUNTS_CSV_PATH = "accounts.csv"
 TRANSACTIONS_CSV_PATH = "transactions.csv"
 
