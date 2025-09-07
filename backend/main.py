@@ -6,6 +6,9 @@ from neo4j import GraphDatabase
 from typing import List, Dict, Any
 import sys
 import os
+from dotenv import load_dotenv
+load_dotenv()
+
 
 # Ensures the backend can find the 'models' directory
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -31,8 +34,8 @@ app.add_middleware(
 )
 
 # --- Neo4j Database Connection ---
-URI = "neo4j+s://80028196.databases.neo4j.io"
-AUTH = ("neo4j", "55TKfw4m1GyHYDmE_Rv29qkM688YOj1ifOXEiopKAkU") 
+URI = os.getenv("NEO4J_URI")
+AUTH = (os.getenv("NEO4J_USER"), os.getenv("NEO4J_PASSWORD"))
 
 class Neo4jApp:
     def __init__(self, uri, auth):
