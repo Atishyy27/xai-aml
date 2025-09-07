@@ -6,6 +6,7 @@ import torch.nn.functional as F
 from dgl.nn.pytorch import GraphConv
 from neo4j import GraphDatabase
 import pandas as pd
+import os
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -43,8 +44,8 @@ def build_graph_from_neo4j(uri, user, password):
 # --- 3. Training Script ---
 if __name__ == "__main__":
     features_df = pd.read_csv("account_features.csv")
-    
-    labels_df = pd.read_csv('../SynthDataGen/transactions.csv')
+
+    labels_df = pd.read_csv('SynthDataGen/transactions.csv')
     illicit_accounts = set(labels_df[labels_df['is_illicit'] == 1]['source_account'])
     features_df['label'] = features_df['account_id'].apply(lambda x: 1 if x in illicit_accounts else 0)
 

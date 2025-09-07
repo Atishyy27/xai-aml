@@ -9,8 +9,8 @@ load_dotenv()
 NEO4J_URI = os.getenv("NEO4J_URI")
 NEO4J_USER = os.getenv("NEO4J_USER")
 NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD")
-ACCOUNTS_CSV_PATH = "accounts.csv"
-TRANSACTIONS_CSV_PATH = "transactions.csv"
+ACCOUNTS_CSV_PATH = "SynthDataGen/accounts.csv"
+TRANSACTIONS_CSV_PATH = "SynthDataGen/transactions.csv"
 
 # --- Main Loading Script ---
 class Neo4jLoader:

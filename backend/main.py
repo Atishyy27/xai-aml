@@ -1,11 +1,10 @@
 # backend/main.py
-
+import os
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from neo4j import GraphDatabase
 from typing import List, Dict, Any
 import sys
-import os
 from dotenv import load_dotenv
 load_dotenv()
 
