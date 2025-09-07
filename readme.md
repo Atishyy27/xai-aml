@@ -83,9 +83,9 @@ Follow these steps to set up and run the entire application on your local machin
 
 **1. Clone the Repository & Setup Python Environment**
 
-Bash
+```bash
 
-`git clone https://github.com/Atishyy27/xai-aml.git
+git clone https://github.com/Atishyy27/xai-aml.git
 cd xai-aml
 
 # Create and activate a Python virtual environment
@@ -96,17 +96,18 @@ python -m venv venv
 
 # Install all required Python packages
 pip install -r requirements.txt`
+```
 
 **2. Setup Frontend Environment**
 
-Bash
-
-`# Navigate to the frontend directory
+```bash
+# Navigate to the frontend directory
 cd frontend
 # Install Node.js dependencies
 npm install
 # Return to the root directory
-cd ..`
+cd ..
+```
 
 **3. Setup Database & Environment File**
 
@@ -121,7 +122,7 @@ cd ..`
 # 1. Generate synthetic accounts.csv and transactions.csv
 python SynthDataGen/generate_data.py
 
-`# 2. Load the CSVs into your Neo4j database
+# 2. Load the CSVs into your Neo4j database
 python SynthDataGen/load_to_neo4j.py
 
 # 3. Create the feature set from the graph data
@@ -156,8 +157,8 @@ python models/train_gcn.py
 
 ## Project Structure
 
-`.
-├── backend/            # FastAPI backend source code
+```
+.├── backend/            # FastAPI backend source code
 ├── Docs/               # Detailed design documents
 ├── frontend/           # React frontend source code
 ├── models/             # AI model training and inference scripts
@@ -166,3 +167,4 @@ python models/train_gcn.py
 ├── .gitignore          # Files and folders to ignore
 ├── requirements.txt    # Python dependencies
 └── README.md           # You are here*
+```
