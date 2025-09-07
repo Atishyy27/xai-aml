@@ -93,7 +93,7 @@ python -m venv venv
 # On Windows:
 .\venv\Scripts\activate
 # On macOS/Linux: source venv/bin/activate
-
+source venv/bin/activate
 # Install all required Python packages
 pip install -r requirements.txt`
 ```
