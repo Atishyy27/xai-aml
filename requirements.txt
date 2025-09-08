@@ -14,4 +14,4 @@ tqdm==4.67.1
 psutil==7.0.0
 # Use these exact versions for compatibility on Windows/CPU
 torch==2.1.2
-dgl==1.1.3
+dgl==1.1.2
