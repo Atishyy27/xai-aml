@@ -130,4 +130,337 @@ tbody tr.network-row:hover {
   text-align: center;
   font-size: 1.2rem;
   color: var(--text-secondary);
+}.dashboard-container {
+    display: flex;
+    gap: 2rem;
+}
+.dashboard-main {
+    flex-grow: 1;
+}
+.dashboard-sidebar {
+    flex-basis: 30%;
+    min-width: 300px;
+}
+.chart-container {
+    padding: 1rem;
+    background-color: #f9f9f9;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+/* frontend/src/index.css */
+
+/* ... (keep all your existing styles from the top) ... */
+
+/* Network View Styles */
+.network-view-container {
+  display: flex;
+  gap: 24px;
+  /* Make sure it fills the available screen height properly */
+  height: calc(100vh - 120px); 
+}
+
+.left-panel {
+  width: 35%;
+  max-width: 450px;
+  background-color: var(--panel-background);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 24px;
+  overflow-y: auto;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  /* Added to make its children (like the chart) layout correctly */
+  display: flex;
+  flex-direction: column;
+}
+
+/* ✅ FIX STARTS HERE */
+
+.right-panel-container {
+  /* 1. This makes the container take all remaining width */
+  flex-grow: 1; 
+
+  /* 2. This makes it a vertical flexbox for its children */
+  display: flex;
+  flex-direction: column;
+  gap: 16px; /* Adds some space between buttons and graph */
+}
+
+.right-panel {
+  /* 3. This makes the graph panel take all remaining height inside its container */
+  flex-grow: 1; 
+
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background-color: var(--panel-background);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  overflow: hidden; /* Important to contain the graph */
+  position: relative; /* Good practice for positioning elements inside */
+}
+
+/* A little polish for the hop controls */
+.hop-controls {
+  padding: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.hop-controls button {
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background-color: #fff;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.hop-controls button:hover:not(:disabled) {
+    border-color: var(--accent-color);
+    color: var(--accent-color);
+}
+
+.hop-controls button:disabled {
+  background-color: var(--accent-color);
+  color: white;
+  border-color: var(--accent-color);
+  cursor: default;
+}
+
+/* ✅ FIX FOR SHAP CHART (so it's not in a corner) */
+.explanation-container canvas {
+    max-width: 100%; /* Ensures the chart is responsive */
+    margin-top: 16px;
+    height: auto !important; /* Override inline styles from chart.js if necessary */
+}
+
+/* ... (keep the rest of your CSS) ... */
+
+/* frontend/src/index.css */
+
+.transaction-list {
+  margin-top: 1rem;
+  max-height: 250px; /* Limit height and make it scrollable */
+  overflow-y: auto;
+  border-top: 1px solid var(--border-color);
+}
+
+.transaction-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 8px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.transaction-details {
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.transaction-amount {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: #c02626; /* A reddish color for the amount */
+}
+/* Add this to your frontend/src/index.css file */
+
+/* --- Metrics Grid --- */
+.metrics-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr; /* Two columns */
+  gap: 16px;
+  margin: 24px 0;
+  border-top: 1px solid var(--border-color);
+  padding-top: 24px;
+}
+
+.metric-card {
+  background-color: #fafafa;
+  border-radius: 8px;
+  padding: 16px;
+  border: 1px solid #e8e8e8;
+}
+
+.metric-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.metric-title {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.metric-value {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.metric-benchmark {
+  margin: 4px 0 0;
+  font-size: 0.8rem;
+  color: #8c8c8c;
+}
+
+/* --- Tooltip for Definitions --- */
+.tooltip-container {
+  position: relative;
+  display: inline-block;
+}
+
+.tooltip-icon {
+  cursor: pointer;
+  font-weight: bold;
+  color: #bfbfbf;
+  border: 1px solid #bfbfbf;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 12px;
+}
+
+.tooltip-text {
+  visibility: hidden;
+  width: 220px;
+  background-color: #333;
+  color: #fff;
+  text-align: center;
+  border-radius: 6px;
+  padding: 8px;
+  position: absolute;
+  z-index: 1;
+  bottom: 125%; /* Position above the icon */
+  left: 50%;
+  margin-left: -110px; /* Use half of the width to center */
+  opacity: 0;
+  transition: opacity 0.3s;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.tooltip-container:hover .tooltip-text {
+  visibility: visible;
+  opacity: 1;
+}
+
+/* --- SHAP Visualization --- */
+.shap-container {
+  margin-top: 24px;
+  border-top: 1px solid var(--border-color);
+  padding-top: 16px;
+}
+
+.shap-container h4 {
+    margin-bottom: 16px;
+}
+
+.shap-item {
+  margin-bottom: 12px;
+}
+
+.shap-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9rem;
+  margin-bottom: 4px;
+  color: var(--text-secondary);
+}
+
+.shap-value {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.shap-bar-container {
+  width: 100%;
+  background-color: #e8e8e8;
+  border-radius: 4px;
+  height: 10px;
+}
+
+.shap-bar {
+  background-color: var(--accent-color);
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.5s ease-in-out;
+}
+
+.no-contributors {
+    font-style: italic;
+    color: var(--text-secondary);
+    background-color: #fafafa;
+    border-radius: 4px;
+    padding: 12px;
+}
+/* ... keep your existing .transaction-amount style ... */
+.transaction-amount {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+/* ✅ ADD THESE NEW RULES */
+.transaction-amount.in {
+  color: #10885a; /* Green for incoming */
+}
+
+.transaction-amount.out {
+  color: #c02626; /* Red for outgoing */
+}
+/* ... (keep your existing styles) ... */
+
+/* --- ✅ NEW HEADER AND LOGO STYLES --- */
+
+.app-header {
+  background-color: var(--header-background);
+  color: white;
+  padding: 8px 24px; /* Adjust padding */
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  z-index: 10;
+  
+  /* Add Flexbox properties for alignment */
+  display: flex;
+  align-items: center;
+  gap: 16px; /* Add space between logo and title */
+}
+
+/* Remove default browser styles from the h1 inside */
+.app-header h1 {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.logo img {
+  height: 40px; /* Control the logo size */
+  width: auto;
+  display: block; /* Helps with alignment */
+}
+
+/* You had a .app-title class in your App.jsx, let's style it */
+.app-title {
+    font-size: 1.2rem;
+    font-weight: 600;
+}
+
+/* Remove the Vite default styles if they are interfering */
+/* You can delete these from your CSS file if they exist */
+#root {
+  max-width: 100%; /* Let our containers control the width */
+  margin: 0;
+  padding: 0;
+  text-align: left; /* Reset text-align */
+}
+
+.logo:hover {
+  filter: none; /* Disable default hover effect */
 }

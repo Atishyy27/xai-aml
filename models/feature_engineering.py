@@ -16,19 +16,19 @@ class FeatureExtractor:
         print("Fetching features in batches to prevent timeouts...")
         # This APOC query processes nodes in batches of 2000 to avoid timeouts.
         query = """
-    MATCH (a:Account)
-    OPTIONAL MATCH (a)-[r_out:TRANSFER]->()
-    OPTIONAL MATCH (a)<-[r_in:TRANSFER]-()
-    RETURN
-        a.account_id AS account_id,
-        a.initial_risk_rating as initial_risk,
-        COUNT(DISTINCT r_out) AS out_degree,
-        COUNT(DISTINCT r_in) AS in_degree,
-        COALESCE(SUM(r_out.amount_inr), 0) AS total_amount_out,
-        COALESCE(SUM(r_in.amount_inr), 0) AS total_amount_in,
-        COALESCE(AVG(r_out.amount_inr), 0) AS avg_amount_out,
-        COALESCE(AVG(r_in.amount_inr), 0) AS avg_amount_in
-    """
+        MATCH (a:Account)
+        OPTIONAL MATCH (a)-[r_out:TRANSFER]->()
+        OPTIONAL MATCH (a)<-[r_in:TRANSFER]-()
+        RETURN
+            a.account_id AS account_id,
+            a.initial_risk_rating as initial_risk,
+            COUNT(DISTINCT r_out) AS out_degree,
+            COUNT(DISTINCT r_in) AS in_degree,
+            COALESCE(SUM(r_out.amount_inr), 0) AS total_amount_out,
+            COALESCE(SUM(r_in.amount_inr), 0) AS total_amount_in,
+            COALESCE(AVG(r_out.amount_inr), 0) AS avg_amount_out,
+            COALESCE(AVG(r_in.amount_inr), 0) AS avg_amount_in
+        """
         with self.driver.session() as session:
             results = session.run(query)
             df = pd.DataFrame([record.data() for record in results])
