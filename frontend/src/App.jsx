@@ -10,12 +10,13 @@ function App() {
     <Router>
       <div className="app-container">
         <header className="app-header">
-          <h1>XAI Anti-Money Laundering Detection</h1>
+          <div className="logo">{<img src="/logo.png" alt="Logo" />}</div>
+          <div className="app-title">XAI Anti-Money Laundering Detection</div>
         </header>
         <main>
           <Routes>
             <Route path="/" element={<Dashboard />} />
-            <Route path="/network/:networkId" element={<NetworkViewWrapper />} />
+            <Route path="/network/:networkId" element={<NetworkView />} />
           </Routes>
         </main>
       </div>
