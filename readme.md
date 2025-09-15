@@ -1,14 +1,18 @@
 ---
-title: Ciis
-emoji: 😻
-colorFrom: yellow
-colorTo: pink
+title: XAI AML Detection Platform
+emoji: 🛡️
+colorFrom: blue
+colorTo: indigo
 sdk: gradio
-sdk_version: 5.45.0
+sdk_version: "4.31.5"
 app_file: app.py
 pinned: false
 license: mit
-short_description: ciis backend for deployment
 ---
 
-Check out the configuration reference at https://huggingface.co/docs/hub/spaces-config-reference
+# XAI Anti-Money Laundering Detection Platform
+
+This Space hosts the FastAPI backend for the XAI AML project. The backend serves the network graph data, XAI explanations, and transaction details to the frontend.
+
+- **Tech Stack:** FastAPI, Neo4j, PyTorch, DGL, SHAP
+- **Live Frontend:** `[Paste the link to your Vercel App here]`
