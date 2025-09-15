@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { getSuspiciousNetworks } from '../api';
 import PatternChart from './PatternChart.jsx';
 import Heatmap from './Heatmap.jsx';
+import ShapChart from './ShapChart.jsx';
 
 const Dashboard = () => {
   const [networks, setNetworks] = useState([]);
