@@ -6,7 +6,8 @@ from backend.main import app as fastapi_app
 gradio_ui = gr.Blocks()
 
 # Mount the FastAPI app onto the Gradio interface.
-# This 'app' variable is what Hugging Face will automatically find and launch.
+# The FastAPI app is the FIRST argument. The Gradio UI is the SECOND.
 app = gr.mount_gradio_app(app=fastapi_app, blocks=gradio_ui, path="/")
 
-# DO NOT add app.launch() or gradio_ui.launch() here.
+# Launch the server with the correct settings for Hugging Face
+gradio_ui.launch(server_name="0.0.0.0", server_port=7860)
