@@ -14,5 +14,5 @@ license: mit
 
 This Space hosts the FastAPI backend for the XAI AML project. The backend serves the network graph data, XAI explanations, and transaction details to the frontend.
 
-- **Tech Stack:** FastAPI, Neo4j, PyTorch, DGL, SHAP
+- **Tech Stack:** FastAPI, Neo4j, PyTorch, DGL, SHAP  
 - **Live Frontend:** `[Paste the link to your Vercel App here]`
