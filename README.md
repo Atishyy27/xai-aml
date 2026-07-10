@@ -1,3 +1,16 @@
+---
+title: SENTINEL AML API
+emoji: 🛡️
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
+<!-- The YAML block above configures the Hugging Face Space (Docker SDK, port
+     7860). It is required by HF and harmless on GitHub. -->
+
 # Project SENTINEL 🛡️
 ### An Explainable AI Framework for Detecting and Dismantling Financial Laundering Networks
 
@@ -133,12 +146,21 @@ bundle logs a loud console error rather than failing as six simultaneous panel
 errors. `vercel.json` rewrites all paths to `index.html`; without it a refresh on
 `/network/ACC1234` 404s, because the router is a `BrowserRouter`.
 
-**Pushing to the Space.** `origin` is GitHub, and there is no CI wiring the two
-together, so a `git push` does not redeploy. Add the Space as a second remote:
+**Pushing to the Space.** `.github/workflows/deploy-hf-space.yml` mirrors `main` to
+the Space on every push, so a normal `git push origin main` redeploys. It needs two
+one-time settings under **Settings → Secrets and variables → Actions**:
+
+| Kind | Name | Value |
+|---|---|---|
+| Secret | `HF_TOKEN` | a write token from huggingface.co/settings/tokens |
+| Variable | `HF_SPACE` | `owner/space`, e.g. `Atishyy27/xai-aml` |
+
+Until both are set the workflow no-ops with a warning rather than failing. To push
+by hand instead:
 
 ```bash
-git remote add space https://huggingface.co/spaces/<user>/<space>
-git push space main
+git remote add space https://<user>:<token>@huggingface.co/spaces/<user>/<space>
+git push --force space main
 ```
 
 Notes: the free tier sleeps, and a cold start pays container boot plus ~25s of
@@ -186,16 +208,18 @@ frontend/src/components/   UI, charts under charts/, primitives under ui/
 SynthDataGen/              generator + accounts.csv + transactions.csv
 ```
 
-## Known dead weight
+## Removed from the Neo4j-backed design
 
-These are left in place from the Neo4j-backed design and are **not** on any runtime path:
+The following were deleted — none were on any runtime path:
 
-- `models/feature_engineering.py`, `models/train_gcn.py` — import `neo4j` / `dgl`
+- `models/feature_engineering.py`, `models/train_gcn.py` — imported `neo4j` / `dgl`
 - `models/train_autoencoder.py` — superseded by `models/anomaly.py`
 - `autoencoder.pth`, `gcn.pth`, `scaler.pkl`, `account_features.csv` at the repo root —
-  fit on a 50,000-account matrix that matches no file still in the repo. Recomputing those
-  features for the 10,000 real accounts reproduces the CSV's amount columns **0%** of the
-  time. The live artifacts live in `artifacts/`.
-- `neo4j/` — a local database directory; the Aura instance in `.env` no longer resolves.
+  fit on a 50,000-account matrix that matched no file in the repo. Recomputing those
+  features for the 10,000 real accounts reproduced the CSV's amount columns **0%** of the
+  time. The live artifacts are trained into `artifacts/` at build time.
+- `frontend/public/geoBoundaries-IND-ADM3.topojson` (12.7 MB) — not referenced; the
+  choropleth loads `india-states.json`.
 
-The GCN was loaded on import and never called. `models/classifier.py` replaces it.
+The GCN was loaded on import and never called; `models/classifier.py` replaces it. The
+Aura instance in `.env` no longer resolves, and `neo4j/` stays gitignored.

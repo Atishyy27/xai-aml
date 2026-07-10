@@ -1,0 +1,54 @@
+# Mirrors main to the Hugging Face Space, which redeploys on push. HF Spaces are
+# their own git repos with no native GitHub link, so this is how the two stay in
+# sync -- a push here becomes a push there.
+#
+# One-time setup (Settings -> Secrets and variables -> Actions):
+#   Secret    HF_TOKEN  -- a write token from https://huggingface.co/settings/tokens
+#   Variable  HF_SPACE  -- "owner/space", e.g. Atishyy27/xai-aml
+#
+# Without HF_SPACE the job no-ops with a clear message instead of failing red.
+name: Deploy to Hugging Face Space
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+# One deploy at a time; a newer push supersedes an in-flight one.
+concurrency:
+  group: hf-space
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Guard on configuration
+        env:
+          HF_SPACE: ${{ vars.HF_SPACE }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          if [ -z "$HF_SPACE" ] || [ -z "$HF_TOKEN" ]; then
+            echo "::warning::HF_SPACE (variable) or HF_TOKEN (secret) is unset; skipping deploy."
+            echo "skip=true" >> "$GITHUB_ENV"
+          fi
+
+      # Full history: HF rejects a shallow push.
+      - uses: actions/checkout@v4
+        if: env.skip != 'true'
+        with:
+          fetch-depth: 0
+          lfs: true
+
+      - name: Push to Space
+        if: env.skip != 'true'
+        env:
+          HF_SPACE: ${{ vars.HF_SPACE }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          # Authenticated remote; the token is masked in logs by Actions.
+          git remote add space "https://oauth2:${HF_TOKEN}@huggingface.co/spaces/${HF_SPACE}"
+          # Force because the Space's own history is unrelated to this repo's.
+          git push --force space HEAD:refs/heads/main
