@@ -1,7 +1,7 @@
-# The image needs: backend/, models/, SynthDataGen/*.csv, requirements.txt.
-# Everything else is either a secret, a build output, or dead weight that ends up
-# in a public image layer. `COPY . /code/` without this file shipped .env --
-# Neo4j Aura credentials -- into the Space.
+# The image needs: backend/, models/, SynthDataGen/*.csv, requirements.txt, and
+# the committed runtime artifacts. Everything else is a secret, a build output,
+# or dead weight. Without this file, `COPY . /code/` shipped .env -- Neo4j Aura
+# credentials -- into the image.
 
 .env
 .env.*
@@ -13,16 +13,15 @@
 # The frontend deploys to Vercel, not into this container.
 frontend/
 
-# Trained inside the image (see Dockerfile), never copied from the host --
-# otherwise a stale local artifact silently overrides a fresh build.
-artifacts/
+# The runtime artifacts (classifier, novelty.csv, metrics) ARE copied in; only
+# the build-time-only autoencoder weights + scaler are excluded.
+artifacts/autoencoder.pth
+artifacts/scaler.pkl
 
-# Superseded by models/ -- see "Known dead weight" in readme.md.
+# Superseded by models/ -- see README.md.
 neo4j/
 account_features.csv
-autoencoder.pth
 gcn.pth
-scaler.pkl
 Docs/
 
 **/__pycache__/

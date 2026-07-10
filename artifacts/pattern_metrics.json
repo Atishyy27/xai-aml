@@ -1,0 +1,92 @@
+{
+  "classes": [
+    "NONE",
+    "MULE",
+    "SMURFING",
+    "LAYERING"
+  ],
+  "confusion_matrix": [
+    [
+      2500,
+      0,
+      7,
+      0
+    ],
+    [
+      0,
+      9,
+      0,
+      1
+    ],
+    [
+      7,
+      0,
+      36,
+      1
+    ],
+    [
+      0,
+      2,
+      1,
+      27
+    ]
+  ],
+  "macro_f1": 0.8969466826805262,
+  "accuracy": 0.99266692396758,
+  "per_class": {
+    "NONE": {
+      "precision": 0.9972078181092939,
+      "recall": 0.9972078181092939,
+      "f1-score": 0.9972078181092939,
+      "support": 2507.0
+    },
+    "MULE": {
+      "precision": 0.8181818181818182,
+      "recall": 0.9,
+      "f1-score": 0.8571428571428571,
+      "support": 10.0
+    },
+    "SMURFING": {
+      "precision": 0.8181818181818182,
+      "recall": 0.8181818181818182,
+      "f1-score": 0.8181818181818182,
+      "support": 44.0
+    },
+    "LAYERING": {
+      "precision": 0.9310344827586207,
+      "recall": 0.9,
+      "f1-score": 0.9152542372881356,
+      "support": 30.0
+    }
+  },
+  "n_train": 7772,
+  "n_test": 2591,
+  "features": [
+    "out_count",
+    "out_total",
+    "out_mean",
+    "out_median",
+    "out_max",
+    "out_std",
+    "in_count",
+    "in_total",
+    "in_mean",
+    "in_median",
+    "in_max",
+    "in_std",
+    "kyc_risk",
+    "throughput",
+    "net_flow",
+    "passthrough_ratio",
+    "out_frac_transfer",
+    "out_frac_purchase",
+    "out_frac_atm_withdrawal",
+    "out_peers",
+    "in_peers",
+    "out_peer_ratio",
+    "in_peer_ratio",
+    "active_days",
+    "txns_per_day",
+    "reciprocal_edges"
+  ]
+}

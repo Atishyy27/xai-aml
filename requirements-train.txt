@@ -1,0 +1,12 @@
+# Training / data-generation deps. Needed to regenerate the artifacts in
+# artifacts/ (models + novelty.csv), NOT to serve them. The deployed instance
+# installs requirements.txt only.
+#
+# Install the CPU torch build; the default Linux wheel is a ~2.5GB CUDA build:
+#   pip install torch==2.8.0 --index-url https://download.pytorch.org/whl/cpu
+#   pip install -r requirements-train.txt
+#
+# Then: python -m models.anomaly && python -m models.classifier
+-r requirements.txt
+torch==2.8.0
+faker==25.0.0

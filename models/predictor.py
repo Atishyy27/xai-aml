@@ -29,14 +29,18 @@ from __future__ import annotations
 
 import functools
 
-import joblib
 import numpy as np
 import pandas as pd
 import shap
-import torch
 
-from . import anomaly, classifier, graph_features
-from .dataset import FEATURE_DEFINITIONS, FEATURE_LABELS, load
+from . import classifier, graph_features
+from .dataset import FEATURE_DEFINITIONS, FEATURE_LABELS, ROOT, load
+
+# The autoencoder's novelty score is precomputed at train time (see
+# models/anomaly.py) and read from here. The serving process never imports
+# torch -- its ~500MB resident set does not fit the 512MB free tier, and the
+# score is static anyway.
+NOVELTY_PATH = ROOT / "artifacts" / "novelty.csv"
 
 # Below this, the classifier is not confident enough to name a typology.
 PATTERN_THRESHOLD = 0.50
@@ -82,19 +86,14 @@ class _Core:
         self.is_customer = self.ds.accounts["account_type"].ne("External").reindex(self.X.index).fillna(False)
         self.customers = self.X.index[self.is_customer]
 
-        # Autoencoder novelty, expressed as a percentile so it is comparable to risk.
-        missing = [p for p in (anomaly.SCALER_PATH, anomaly.MODEL_PATH) if not p.exists()]
-        if missing:
+        # Autoencoder novelty, precomputed (percentile rank). See NOVELTY_PATH.
+        if not NOVELTY_PATH.exists():
             raise FileNotFoundError(
-                f"missing autoencoder artifact(s): {', '.join(p.name for p in missing)}\n"
-                "Train first:\n    python -m models.anomaly && python -m models.classifier"
+                f"{NOVELTY_PATH.name} not found. Train first:\n"
+                "    python -m models.anomaly && python -m models.classifier"
             )
-        ae_scaler = joblib.load(anomaly.SCALER_PATH)
-        ae = anomaly.Autoencoder(len(anomaly.FEATURE_COLUMNS))
-        ae.load_state_dict(torch.load(anomaly.MODEL_PATH))
-        ae.eval()
-        err = anomaly.reconstruction_error(ae, ae_scaler.transform(anomaly.compress(self.ds.features)))
-        self.novelty = pd.Series(err, index=self.ds.features.index).rank(pct=True)
+        novelty = pd.read_csv(NOVELTY_PATH, index_col="account_id")["novelty"]
+        self.novelty = novelty.reindex(self.ds.features.index)
 
         print(f" > AI core ready: {len(self.X):,} accounts, {len(self.feature_names)} features.")
 

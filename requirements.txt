@@ -1,4 +1,7 @@
-# Runtime
+# Runtime deps ONLY -- what `uvicorn backend.main:app` needs to serve.
+# Deliberately excludes torch: the serving process reads a precomputed novelty
+# score (artifacts/novelty.csv) and never imports torch, whose ~500MB resident
+# set does not fit a 512MB instance. Training deps are in requirements-train.txt.
 fastapi==0.116.1
 uvicorn[standard]==0.35.0
 pandas==2.3.3
@@ -7,12 +10,8 @@ networkx==3.3
 scikit-learn==1.7.0
 shap==0.48.0
 joblib==1.5.1
-torch==2.8.0
 
-# Synthetic data generation (SynthDataGen/generate_data.py only)
-faker==25.0.0
-
-# Removed:
+# Removed from the original Neo4j-backed design:
 #   neo4j  -- the graph is built in-process from the CSVs; the Aura instance in
 #             .env no longer resolves and nothing queries Cypher any more.
 #   dgl    -- the GCN it backed was loaded but never called, and DGL publishes no

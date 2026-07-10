@@ -53,6 +53,12 @@ MODEL_PATH = ARTIFACT_DIR / "autoencoder.pth"
 SCALER_PATH = ARTIFACT_DIR / "scaler.pkl"
 METRICS_PATH = ARTIFACT_DIR / "anomaly_metrics.json"
 
+# Novelty is a percentile over a static dataset, so it never changes at serving
+# time. We compute it here, once, and the API reads this file -- which lets the
+# running process avoid importing torch at all (torch's ~500MB resident set does
+# not fit the 512MB free tier). See models/predictor.py.
+NOVELTY_PATH = ARTIFACT_DIR / "novelty.csv"
+
 SEED = 42
 
 # Heavy-tailed money columns. initial_risk (1-10) and the degrees are already
@@ -147,12 +153,17 @@ def train(epochs: int = 120, batch_size: int = 512, lr: float = 3e-3, save: bool
         "final_loss": float(loss.item()),
     }
 
+    # The percentile rank the API serves. Computed over every account, in the
+    # dataset's own index, so predictor.py can just reindex it.
+    novelty = pd.Series(err, index=ds.features.index).rank(pct=True)
+
     if save:
         ARTIFACT_DIR.mkdir(exist_ok=True)
         torch.save(model.state_dict(), MODEL_PATH)
         joblib.dump(scaler, SCALER_PATH)
         METRICS_PATH.write_text(json.dumps(metrics, indent=2))
-        print(f"\nsaved -> {MODEL_PATH.name}, {SCALER_PATH.name}, {METRICS_PATH.name}")
+        novelty.rename("novelty").to_csv(NOVELTY_PATH, index_label="account_id")
+        print(f"\nsaved -> {MODEL_PATH.name}, {SCALER_PATH.name}, {METRICS_PATH.name}, {NOVELTY_PATH.name}")
 
     return metrics
 

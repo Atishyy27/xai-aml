@@ -11,7 +11,17 @@ frontend/node_modules/
 
 # --- Generated Data, Models & Artifacts ---
 # Regenerate with: python -m models.anomaly && python -m models.classifier
-artifacts/
+#
+# The RUNTIME artifacts are committed so the deployed instance (Render) serves
+# without a training step or torch. The build-time-only artifacts -- the
+# autoencoder weights and its scaler, used solely to regenerate novelty.csv --
+# stay ignored.
+artifacts/*
+!artifacts/pattern_classifier.joblib
+!artifacts/novelty.csv
+!artifacts/pattern_metrics.json
+!artifacts/anomaly_metrics.json
+
 *.egg-info/
 *.egg
 *.so

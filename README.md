@@ -118,55 +118,53 @@ of a diverging axis.
 The API and the UI deploy separately.
 
 ```
-Vercel  ──────────────►  Hugging Face Space
-React UI    CORS         FastAPI, port 7860
-                         models baked in at build
+Vercel  ──────────────►  Render (or any host)
+React UI    CORS         FastAPI + committed models
 ```
 
-**API — Hugging Face Spaces (Docker SDK).** `Dockerfile` trains both models during
-the build, so the image is self-contained and its metrics are the ones above. Set
-one variable in the Space settings:
+**Why the models are committed.** The runtime artifacts — `pattern_classifier.joblib`,
+`novelty.csv`, and the two metrics files — live in `artifacts/` and are checked in.
+So the deploy needs no training step, and, crucially, **the serving process never
+imports torch**: novelty is a percentile over a static dataset, precomputed at train
+time. That drops the resident set from ~600MB to ~265MB, which is what lets it run on
+a 512MB free instance. Regenerate the artifacts with the training deps:
 
-| Variable | Value |
+```bash
+pip install -r requirements-train.txt
+python -m models.anomaly && python -m models.classifier
+```
+
+**API — Render (native Python).** `render.yaml` pins the config:
+
+| Setting | Value |
 |---|---|
-| `ALLOWED_ORIGINS` | `https://<your-app>.vercel.app` (comma-separated for several) |
+| Build | `pip install -r requirements.txt` (torch-free, fast) |
+| Start | `uvicorn backend.main:app --host 0.0.0.0 --port $PORT` |
+| Health check | `/health` |
+| Env var `ALLOWED_ORIGINS` | your UI origin, e.g. `https://xai-aml.vercel.app` |
 
-Any `*.vercel.app` origin is allowed by regex so preview deployments work without
-re-pinning each commit's subdomain. Local dev origins are always allowed.
+A manually-created service does **not** auto-adopt `render.yaml`; set the two commands
+under **Settings** or re-create it via **New → Blueprint**. CORS reads `ALLOWED_ORIGINS`
+and allows any `*.vercel.app` by regex; local dev origins are always allowed. The free
+instance sleeps, so a cold start pays ~25s of first-request warmup (graph build + SHAP
+explainer) — hence the 60s axios timeout.
+
+A `Dockerfile` is also provided (for HF Spaces or Render-as-Docker): same idea, it
+installs the runtime requirements and copies the committed artifacts — no torch, no
+training. `.github/workflows/deploy-hf-space.yml` mirrors `main` to a HF Space if you
+set `HF_TOKEN` (secret) and `HF_SPACE` (variable); it no-ops until then.
 
 **UI — Vercel.** Set the project root to `frontend/`. One required variable:
 
 | Variable | Value |
 |---|---|
-| `VITE_API_URL` | `https://<user>-<space>.hf.space` |
+| `VITE_API_URL` | your API URL, e.g. `https://xai-aml-final.onrender.com` |
 
 Vite inlines this at build time. A production build without it falls back to
 `127.0.0.1:8000` — pointing every visitor's browser at their own machine — so the
 bundle logs a loud console error rather than failing as six simultaneous panel
 errors. `vercel.json` rewrites all paths to `index.html`; without it a refresh on
 `/network/ACC1234` 404s, because the router is a `BrowserRouter`.
-
-**Pushing to the Space.** `.github/workflows/deploy-hf-space.yml` mirrors `main` to
-the Space on every push, so a normal `git push origin main` redeploys. It needs two
-one-time settings under **Settings → Secrets and variables → Actions**:
-
-| Kind | Name | Value |
-|---|---|---|
-| Secret | `HF_TOKEN` | a write token from huggingface.co/settings/tokens |
-| Variable | `HF_SPACE` | `owner/space`, e.g. `Atishyy27/xai-aml` |
-
-Until both are set the workflow no-ops with a warning rather than failing. To push
-by hand instead:
-
-```bash
-git remote add space https://<user>:<token>@huggingface.co/spaces/<user>/<space>
-git push --force space main
-```
-
-Notes: the free tier sleeps, and a cold start pays container boot plus ~25s of
-model warmup, which is why the axios timeout is 60s. `torch` installs from the CPU
-wheel index — the default Linux wheel is a ~2.5GB CUDA build, to run one 9→6→3→6→9
-MLP that is scored once at startup.
 
 ---
 

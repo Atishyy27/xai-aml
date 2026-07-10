@@ -1,0 +1,24 @@
+# Render Blueprint. If the service was created by hand in the dashboard, this
+# file does not retroactively reconfigure it -- set the same two commands under
+# Settings, or re-create the service via "New > Blueprint" to adopt this.
+#
+# Native Python (not Docker) is deliberate: the build installs requirements.txt,
+# which is torch-free, so it is small and fast. The models are committed under
+# artifacts/, so there is no training step at deploy time and nothing to warm
+# beyond the ~25s graph build on the first request.
+services:
+  - type: web
+    name: xai-aml-final
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      # Set to the deployed UI's origin, e.g. https://xai-aml.vercel.app.
+      # Comma-separate several. *.vercel.app is already allowed by regex.
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: PYTHON_VERSION
+        value: "3.10.11"
