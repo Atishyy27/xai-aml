@@ -1,53 +1,36 @@
-// frontend/src/api/index.js
-import axios from 'axios';
+import axios from "axios";
+
+const DEV_API = "http://127.0.0.1:8000";
+const baseURL = import.meta.env.VITE_API_URL ?? DEV_API;
+
+// A production bundle that falls back to localhost points every visitor's
+// browser at their own machine, and the only symptom is that all six panels
+// render an error state at once. Say so at build/boot time instead.
+if (import.meta.env.PROD && !import.meta.env.VITE_API_URL) {
+  console.error(
+    "[SENTINEL] VITE_API_URL is unset in a production build; API calls will " +
+      `go to ${DEV_API} and fail. Set it in the Vercel project's environment variables.`
+  );
+}
 
 const apiClient = axios.create({
-  baseURL: 'http://127.0.0.1:8000',
+  // The Space sleeps on the free tier; a cold start pays the ~25s model warmup
+  // on top of container boot, which overruns a 30s timeout.
+  baseURL,
+  timeout: 60000,
 });
 
-export const getSuspiciousNetworks = async (accountId, hops = 1) => {
-  const params = {};
-  if (accountId) {
-    params.account_id = accountId;
-    params.hops = hops;
-  }
+const get = async (url, params) => (await apiClient.get(url, { params })).data;
 
-  const response = await apiClient.get('/suspicious-networks', { params });
-  return response.data;
-};
+export const getSummary = () => get("/statistics/summary");
+export const getModelCard = () => get("/model-card");
+export const getSuspiciousNetworks = (limit = 50) => get("/suspicious-networks", { limit });
+export const getPatternStatistics = () => get("/statistics/patterns");
+export const getHeatmapData = () => get("/statistics/heatmap");
 
+export const getNetworkGraph = (accountId, hops = 1) => get(`/network/${accountId}`, { hops });
+export const getAccountExplanation = (accountId) => get(`/account/${accountId}/explanation`);
+export const getTransactions = (accountId, { illicitOnly = false, limit = 50 } = {}) =>
+  get(`/network/${accountId}/transactions`, { illicit_only: illicitOnly, limit });
 
-export const getNetworkGraph = async (networkId, hops = 1) => {
-  const response = await apiClient.get(`/network/${networkId}?hops=${hops}`);
-  return response.data;
-};
-
-export const getAccountExplanation = async (accountId) => {
-  const response = await apiClient.get(`/account/${accountId}/explanation`);
-  return response.data;
-};
-
-export const getHeatmapData = async () => {
-    try {
-        const response = await apiClient.get('/statistics/heatmap');
-        return response.data;
-    } catch (error) {
-        console.error("Error fetching heatmap data:", error);
-        throw error;
-    }
-};
-
-export const getPatternStatistics = async () => {
-  try {
-    const response = await apiClient.get('/statistics/patterns'); // fixed here
-    return response.data;
-  } catch (error) {
-    console.error("Error fetching pattern statistics:", error);
-    throw error;
-  }
-};
-
-export const getIllicitTransactions = async (accountId) => {
-  const response = await apiClient.get(`/network/${accountId}/illicit-transactions`);
-  return response.data;
-};
+export const searchAccounts = (q) => get("/accounts/search", { q });

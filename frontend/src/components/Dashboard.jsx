@@ -1,81 +1,124 @@
-// frontend/src/components/Dashboard.jsx
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { getSuspiciousNetworks } from '../api';
-import PatternChart from './PatternChart.jsx';
-import Heatmap from './Heatmap.jsx';
-import ShapChart from './ShapChart.jsx';
+import React, { useMemo, useState } from "react";
+import { getHeatmapData, getPatternStatistics, getSuspiciousNetworks, getSummary } from "../api";
+import { useFetch } from "../lib/useFetch";
+import { Card, ErrorNote, Spinner, StatTile } from "./ui/Primitives";
+import AccountsTable from "./AccountsTable";
+import PatternShare from "./charts/PatternShare";
+import GeoRisk from "./charts/GeoRisk";
+import { formatCompactCurrency, formatCount, formatPercent, PATTERN_SLOT } from "../lib/format";
 
-const Dashboard = () => {
-  const [networks, setNetworks] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const navigate = useNavigate();
+const TYPOLOGIES = ["ALL", "MULE", "SMURFING", "LAYERING"];
 
-  useEffect(() => {
-    const fetchNetworks = async () => {
-      try {
-        setIsLoading(true);
-        const data = await getSuspiciousNetworks();
-        setNetworks(data);
-        setError(null);
-      } catch (err) {
-        setError('Failed to fetch suspicious networks. Is the backend running?');
-        console.error(err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchNetworks();
-  }, []);
+export default function Dashboard() {
+  const [query, setQuery] = useState("");
+  const [typology, setTypology] = useState("ALL");
 
-  const handleNetworkSelect = (network) => {
-    navigate(`/network/${network.account_id}`);
-  };
+  const summary = useFetch(() => getSummary(), []);
+  const networks = useFetch(() => getSuspiciousNetworks(100), []);
+  const patterns = useFetch(() => getPatternStatistics(), []);
+  const geo = useFetch(() => getHeatmapData(), []);
 
-  if (isLoading) {
-    return <div className="loading-message">Loading suspicious networks...</div>;
+  // One filter row scopes everything below it; charts do not carry their own.
+  const filtered = useMemo(() => {
+    const rows = networks.data ?? [];
+    const q = query.trim().toUpperCase();
+    return rows.filter(
+      (r) =>
+        (typology === "ALL" || r.pattern_type === typology) &&
+        (!q || r.account_id.toUpperCase().includes(q) || r.state.toUpperCase().includes(q))
+    );
+  }, [networks.data, query, typology]);
+
+  if (networks.error) {
+    return (
+      <ErrorNote onRetry={networks.refetch}>
+        Could not reach the API at <code>127.0.0.1:8000</code>. Start it with{" "}
+        <code>uvicorn backend.main:app --reload</code>.
+      </ErrorNote>
+    );
   }
-  
-  if (error) {
-    return <div className="error-message">{error}</div>;
-  }
+
+  const s = summary.data;
 
   return (
-    <div className="dashboard-container">
-      <div className="dashboard-main">
-        <h2>Top Flagged Networks / Accounts</h2>
-        <div className="table-container">
-          <table>
-            <thead>
-              <tr>
-                <th>Account ID</th>
-                <th>Risk Score</th>
-                <th>Pattern Type</th>
-              </tr>
-            </thead>
-            <tbody>
-              {networks.map((network) => (
-                <tr
-                  key={network.account_id}
-                  onClick={() => handleNetworkSelect(network)}
-                  className="network-row"
-                >
-                  <td>{network.account_id}</td>
-                  <td>{(network.risk_score * 100).toFixed(1)}%</td>
-                  <td>{network.pattern_type}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+    <div className="page">
+      <div className="kpi-row">
+        <StatTile
+          hero
+          label="Accounts flagged"
+          value={s ? formatCount(s.accounts_flagged) : "—"}
+          hint={s ? `${formatPercent(s.flagged_rate, 2)} of ${formatCount(s.accounts_monitored)} monitored` : ""}
+        />
+        <StatTile
+          label="Value at risk"
+          value={s ? formatCompactCurrency(s.value_at_risk) : "—"}
+          hint="Inbound value across flagged accounts"
+        />
+        <StatTile
+          label="Transactions analysed"
+          value={s ? formatCount(s.transactions_analysed) : "—"}
+          hint="Full book"
+        />
+        <StatTile
+          label="High novelty"
+          value={s ? formatCount(s.high_novelty) : "—"}
+          hint="99th percentile — unlike anything on the book"
+        />
+      </div>
+
+      <div className="filters" role="search">
+        <input
+          type="search"
+          className="input"
+          placeholder="Filter by account ID or state…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          aria-label="Filter accounts"
+        />
+        <div className="segmented" role="group" aria-label="Filter by typology">
+          {TYPOLOGIES.map((t) => (
+            <button
+              key={t}
+              type="button"
+              className={`segmented__btn ${typology === t ? "is-active" : ""}`}
+              aria-pressed={typology === t}
+              onClick={() => setTypology(t)}
+            >
+              {t !== "ALL" && (
+                <i className="badge__dot" style={{ background: PATTERN_SLOT[t].var }} aria-hidden="true" />
+              )}
+              {t === "ALL" ? "All" : PATTERN_SLOT[t].label}
+            </button>
+          ))}
+        </div>
+        <span className="filters__count">{formatCount(filtered.length)} shown</span>
+      </div>
+
+      <div className="grid">
+        <Card
+          className="grid__main"
+          title="Flagged accounts"
+          subtitle="Ranked by classifier risk. Select a row to open its network."
+        >
+          {networks.loading && !networks.data ? (
+            <Spinner label="Scoring accounts" />
+          ) : (
+            <div className={networks.stale ? "is-stale" : undefined}>
+              <AccountsTable rows={filtered} filter={query} />
+            </div>
+          )}
+        </Card>
+
+        <div className="grid__side">
+          <Card title="Typology mix" subtitle="Share of flagged accounts">
+            {patterns.loading && !patterns.data ? <Spinner /> : <PatternShare data={patterns.data} />}
+          </Card>
+
+          <Card title="Geographic distribution" subtitle="Flagged accounts by state">
+            {geo.loading && !geo.data ? <Spinner /> : <GeoRisk data={geo.data} />}
+          </Card>
         </div>
       </div>
-        <aside className="dashboard-sidebar">
-          <PatternChart />
-          <Heatmap /> 
-      </aside>
     </div>
   );
-};
-
-export default Dashboard;
+}

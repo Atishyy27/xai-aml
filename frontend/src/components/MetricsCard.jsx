@@ -1,38 +1,27 @@
-import React from 'react';
+import React from "react";
+import { formatMetric } from "../lib/format";
 
-const MetricsCard = ({ title, value, definition, benchmark }) => {
-  // Helper to safely format numbers, returning 'N/A' if the value is invalid
-  const formatNumber = (num) => {
-    // Check if it's a valid, finite number
-    if (typeof num === 'number' && isFinite(num)) {
-      return num.toLocaleString('en-IN');
-    }
-    // Return the value as is if it's a string (like a percentage)
-    if (typeof num === 'string') {
-        return num;
-    }
-    return 'N/A';
-  };
-
-  const formattedValue = formatNumber(value);
-  const formattedBenchmark = formatNumber(benchmark);
-
+/* The backend sends `{ value, unit, benchmark }` as raw numbers; formatting is
+ * applied here so every rupee figure on screen uses the same en-IN grouping.
+ *
+ * The old version received pre-formatted strings from Python (`f"Rs{x:,.0f}"`)
+ * and ran `toLocaleString` on anything that still looked numeric -- which is how
+ * "Rs755,771" ended up beside "Rs7.4Cr" on the same page.
+ */
+export default function MetricsCard({ title, value, unit, benchmark, definition }) {
   return (
-    <div className="metric-card">
-      <div className="metric-header">
-        <h5 className="metric-title">{title}</h5>
-        <div className="tooltip-container">
-          <span className="tooltip-icon">ⓘ</span>
-          <p className="tooltip-text">{definition || 'No definition available.'}</p>
-        </div>
+    <div className="metric">
+      <div className="metric__head">
+        <h5 className="metric__title">{title}</h5>
+        {definition && (
+          <span className="tooltip" tabIndex={0} role="note" aria-label={definition}>
+            <span aria-hidden="true">ⓘ</span>
+            <span className="tooltip__body">{definition}</span>
+          </span>
+        )}
       </div>
-      <p className="metric-value">{formattedValue}</p>
-      {/* Only render the benchmark if it's available */}
-      {formattedBenchmark !== 'N/A' && (
-        <p className="metric-benchmark">Benchmark: {formattedBenchmark}</p>
-      )}
+      <p className="metric__value">{formatMetric(value, unit)}</p>
+      {benchmark != null && <p className="metric__benchmark">Typical: {formatMetric(benchmark, unit)}</p>}
     </div>
   );
-};
-
-export default MetricsCard;
+}

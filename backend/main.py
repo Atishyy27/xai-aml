@@ -1,268 +1,220 @@
 # backend/main.py
+"""SENTINEL API.
+
+Serves entirely from the in-memory graph built in models/dataset.py. The Neo4j
+dependency is gone: the Aura instance in .env no longer resolves, and the graph
+(10k nodes / 51k edges) fits comfortably in process. Cypher queries have been
+replaced by networkx traversals.
+"""
+from __future__ import annotations
+
+import json
 import os
+import sys
+from contextlib import asynccontextmanager
+from pathlib import Path
+from typing import Any
+
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from neo4j import GraphDatabase
-from typing import List, Dict, Any
-import sys
-from collections import Counter
-import logging
-from dotenv import load_dotenv
-load_dotenv()
 
-# Ensures the backend can find the 'models' directory
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from models.predictor import get_prediction_and_explanation, get_top_suspicious_networks
+sys.path.append(str(Path(__file__).resolve().parent.parent))
+
+from models import predictor
+from models.dataset import ROOT, load
+
+ARTIFACTS = ROOT / "artifacts"
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Warm the models before the first request rather than paying ~20s on it.
+    predictor.core()
+    yield
+
 
 app = FastAPI(
-    title="XAI-AML Detection API",
-    description="Live API for detecting and explaining money laundering networks.",
-    version="1.0.0"
+    title="SENTINEL API",
+    description="Explainable detection of money-laundering networks.",
+    version="2.0.0",
+    lifespan=lifespan,
 )
 
-# --- CORS Middleware ---
-origins = ["http://localhost:5173", "http://localhost:3000"]
+# 5173 is Vite's default, but Windows reserves 5076-5175 (see
+# `netsh interface ipv4 show excludedportrange`), so 5200 is the fallback the
+# dev script uses on this machine.
+_DEV_PORTS = (5173, 5200, 3000)
+_DEV_ORIGINS = [f"http://{h}:{p}" for h in ("localhost", "127.0.0.1") for p in _DEV_PORTS]
+
+# The UI is deployed separately (Vercel), so production origins cannot be known
+# at build time. Set ALLOWED_ORIGINS as a comma-separated list in the Space's
+# settings; dev origins stay allowed either way so a local UI can hit the
+# deployed API while debugging.
+_extra = [o.strip() for o in os.environ.get("ALLOWED_ORIGINS", "").split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=_DEV_ORIGINS + _extra,
+    # Vercel preview deployments get a fresh subdomain per commit; pinning each
+    # one is not workable.
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# --- Neo4j Driver (Global & Robust) ---
-# Create a single driver instance to be shared by the application.
-# The driver manages a pool of connections, which is thread-safe.
-URI = os.getenv("NEO4J_URI")
-AUTH = (os.getenv("NEO4J_USER"), os.getenv("NEO4J_PASSWORD"))
-driver = GraphDatabase.driver(URI, auth=AUTH)
 
-@app.on_event("startup")
-async def startup_event():
-    # Verify connection on startup
-    driver.verify_connectivity()
-    print("FastAPI app starting up, Neo4j driver is ready.")
-
-@app.on_event("shutdown")
-def shutdown_event():
-    # Close the driver connection pool on shutdown
-    driver.close()
-    print("FastAPI app shutting down, Neo4j driver closed.")
+@app.get("/health", tags=["Status"])
+def health() -> dict[str, str]:
+    """Liveness probe. Deliberately does not touch the models -- it answers
+    'is the process up', which is what the container healthcheck asks."""
+    return {"status": "ok"}
 
 
-# --- LIVE API ENDPOINTS ---
 @app.get("/", tags=["Status"])
-def read_root():
-    return {"status": "API is operational"}
+def read_root() -> dict[str, Any]:
+    ds = load()
+    return {
+        "status": "operational",
+        "accounts": len(ds.accounts),
+        "transactions": len(ds.transactions),
+    }
 
-# CORRECTED ENDPOINT FOR THE DASHBOARD
+
+@app.get("/model-card", tags=["Status"])
+def model_card() -> dict[str, Any]:
+    """Held-out metrics for both models. Surfaced in the UI so the numbers on
+    screen can be traced to an evaluation rather than taken on trust."""
+    def _read(name: str) -> dict:
+        p = ARTIFACTS / name
+        return json.loads(p.read_text()) if p.exists() else {}
+
+    return {
+        "classifier": _read("pattern_metrics.json"),
+        "novelty": _read("anomaly_metrics.json"),
+        "pattern_threshold": predictor.PATTERN_THRESHOLD,
+    }
+
+
 @app.get("/suspicious-networks", tags=["Networks"])
-def get_suspicious_networks_list() -> List[Dict[str, Any]]:
-    """
-    Returns a list of the top flagged networks for the main dashboard.
-    """
-    try:
-        live_networks = get_top_suspicious_networks()
-        return live_networks
-    except Exception as e:
-        print(f"Error in AI Core: {e}")
-        raise HTTPException(status_code=500, detail="Error processing data in the AI core.")
+def suspicious_networks(limit: int = Query(25, ge=1, le=200)) -> list[dict[str, Any]]:
+    return predictor.get_top_suspicious_networks(top_n=limit)
+
 
 @app.get("/network/{account_id}", tags=["Networks"])
-# CHANGE THIS FUNCTION SIGNATURE
-def get_live_network_details(account_id: str, hops: int = Query(1, ge=1, le=2)) -> Dict[str, Any]:
-    # This query now dynamically uses the 'hops' variable.
-    # The f-string is safe here because 'hops' is validated by FastAPI to be an integer (1 or 2).
-    query = f"""
-    MATCH (target:Account {{account_id: $acc_id}})
-    OPTIONAL MATCH path = (target)-[:TRANSFER*1..{hops}]-(neighbor:Account)
-    WITH collect(path) as paths
-    UNWIND paths as p
-    WITH nodes(p) as all_nodes, relationships(p) as all_rels
-    UNWIND all_nodes as n
-    UNWIND all_rels as r
-    RETURN
-        collect(DISTINCT {{id: n.account_id}}) AS nodes,
-        collect(DISTINCT {{source: startNode(r).account_id, target: endNode(r).account_id, amount: r.amount_inr}}) AS edges
-    """
-    try:
-        with driver.session() as session:
-            result = session.run(query, acc_id=account_id).single()
-            if not result or not result["nodes"]:
-                # If no neighbors, at least return the target node itself
-                return {
-                    "network_id": account_id,
-                    "graph": {
-                        "nodes": [{"id": account_id}],
-                        "edges": []
-                    }
-                }
-            
-            graph_data = {"nodes": result["nodes"], "edges": result["edges"]}
-            
-            return {"network_id": account_id, "graph": graph_data}
-    except Exception as e:
-        print(f"Database query error for {account_id}: {e}")
-        raise HTTPException(status_code=500, detail="Error querying the graph database.")
+def network(account_id: str, hops: int = Query(1, ge=1, le=2)) -> dict[str, Any]:
+    ds = load()
+    g = ds.graph
+    if account_id not in g:
+        raise HTTPException(404, f"Account {account_id} not found.")
+
+    # Undirected ego graph: money laundering neighbourhoods matter in both
+    # directions, and the old Cypher used an undirected -[:TRANSFER*1..n]- match.
+    import networkx as nx
+
+    ego = nx.ego_graph(g.to_undirected(as_view=True), account_id, radius=hops)
+    nodes = list(ego.nodes())
+
+    c = predictor.core()
+    node_payload = [
+        {
+            "id": n,
+            "risk_score": float(c.risk[n]) if n in c.risk.index else 0.0,
+            "pattern_type": c.pattern_of(n) if n in c.risk.index else "NONE",
+            "state": str(ds.accounts.loc[n, "state"]) if n in ds.accounts.index else "Unknown",
+            "is_focus": n == account_id,
+        }
+        for n in nodes
+    ]
+
+    seen = set(nodes)
+    edge_payload = [
+        {
+            "source": u,
+            "target": v,
+            "amount": float(d["amount"]),
+            "count": int(d["count"]),
+            "illicit": bool(d["illicit"]),
+        }
+        # Read directed edges off the original graph, restricted to the ego set.
+        for u, v, d in g.edges(nbunch=nodes, data=True)
+        if u in seen and v in seen
+    ]
+
+    return {"network_id": account_id, "graph": {"nodes": node_payload, "edges": edge_payload}}
+
 
 @app.get("/account/{account_id}/explanation", tags=["XAI"])
-def get_live_account_explanation(account_id: str) -> Dict[str, Any]:
-    try:
-        # This function still gets the core AI prediction
-        result = get_prediction_and_explanation(account_id)
-        print("--- AI MODEL OUTPUT ---", result)
-        if "error" in result:
-            raise HTTPException(status_code=404, detail=result["error"])
+def explanation(account_id: str) -> dict[str, Any]:
+    result = predictor.get_prediction_and_explanation(account_id)
+    if "error" in result:
+        raise HTTPException(404, result["error"])
+    return {"explanation": result}
 
-        # --- NEW LOGIC TO BUILD THE DETAILED RESPONSE ---
-        
-        # This is placeholder logic. Replace with your actual feature values.
-        feature_values = result.get('feature_values', {})
-        total_amount_in = feature_values.get('total_amount_in', 0)
-        transaction_volume = feature_values.get('transaction_volume', 0)
-        risk_score = result.get('risk_score', 0)
 
-        metrics_data = [
+@app.get("/network/{account_id}/transactions", tags=["Networks"])
+def transactions(
+    account_id: str,
+    illicit_only: bool = Query(False),
+    limit: int = Query(50, ge=1, le=500),
+) -> dict[str, Any]:
+    ds = load()
+    if account_id not in ds.accounts.index:
+        raise HTTPException(404, f"Account {account_id} not found.")
+
+    tx = ds.transactions
+    mine = tx[(tx["source_account"] == account_id) | (tx["target_account"] == account_id)]
+    if illicit_only:
+        # The old endpoint was named "illicit-transactions" but never filtered.
+        mine = mine[mine["is_illicit"] == 1]
+    mine = mine.sort_values("timestamp", ascending=False).head(limit)
+
+    return {
+        "transactions": [
             {
-                "name": "Total Amount In (30d)",
-                "value": total_amount_in,
-                "benchmark": 500000,
-                "definition": "Total monetary value of all incoming transactions in the last 30 days."
-            },
-            {
-                "name": "Transaction Volume (30d)",
-                "value": transaction_volume,
-                "benchmark": 50,
-                "definition": "Total number of transactions (in/out) in the last 30 days."
-            },
-            {
-                "name": "Risk Score",
-                "value": f"{(risk_score * 100):.1f}%",
-                "benchmark": "25%",
-                "definition": "The model's confidence that this account is involved in illicit activities."
+                "id": r.transaction_id,
+                "from": r.source_account,
+                "to": r.target_account,
+                "amount": float(r.amount_inr),
+                "date": r.timestamp.isoformat(),
+                "type": r.transaction_type,
+                "illicit": bool(r.is_illicit),
+                "direction": "in" if r.target_account == account_id else "out",
             }
+            for r in mine.itertuples()
         ]
-        
-        # ✅ THE FIX IS HERE: Ensure we always have contributors to show
-        feature_contributions = result.get("feature_contributions", [])
-        
-        # If the model found no significant contributors, build a default list
-        # of the top features, even if their impact is 0.
-        if not feature_contributions:
-            all_features = result.get("all_shap_values", []) # Assume your model can provide this
-            # Sort by absolute impact and take the top 3
-            sorted_features = sorted(all_features, key=lambda x: abs(x.get('impact', 0)), reverse=True)
-            feature_contributions = sorted_features[:3]
+    }
 
-            # If there's still nothing, create a dummy message
-            if not feature_contributions:
-                 feature_contributions = [{"feature": "No significant factors", "impact": 0}]
-
-
-        # Combine everything into the final, expected structure
-        detailed_explanation = {
-            "summary": result.get("summary", "No summary available."),
-            "feature_contributions": feature_contributions,
-            "metrics": metrics_data
-        }
-
-        return {"explanation": detailed_explanation}
-
-    except Exception as e:
-        print(f"XAI explanation error for {account_id}: {e}")
-        raise HTTPException(status_code=500, detail="Error generating AI explanation.")
-
-# ... (rest of your main.py file) ...
 
 @app.get("/statistics/patterns", tags=["Statistics"])
-def get_pattern_distribution() -> List[Dict[str, Any]]:
-    """
-    Returns the count of each illicit pattern type among high-risk accounts.
-    """
-    try:
-        live_networks = get_top_suspicious_networks(top_n=1000)
-        if not live_networks:
-            return []
+def pattern_statistics() -> list[dict[str, Any]]:
+    return predictor.get_pattern_distribution()
 
-        pattern_counts = Counter(
-            network['pattern_type'] 
-            for network in live_networks 
-            if 'pattern_type' in network and network['pattern_type'] != 'Complex'
-        )
 
-        formatted_data = [{"pattern": pattern, "count": count} for pattern, count in pattern_counts.items()]
-        formatted_data.sort(key=lambda x: x['count'], reverse=True)
+@app.get("/statistics/heatmap", tags=["Statistics"])
+def heatmap() -> dict[str, int]:
+    return predictor.get_state_distribution()
 
-        return formatted_data
-    except Exception as e:
-        print(f"Error fetching pattern statistics: {e}")
-        raise HTTPException(status_code=500, detail="Error processing pattern statistics.")
-    
-    
-@app.get("/statistics/heatmap", tags=["Statistics"], response_model=Dict[str, int])
-def get_heatmap_data() -> Dict[str, int]:
-    """
-    Aggregates high-risk accounts by state for the geographic heatmap.
-    """
-    try:
-        # 1. Get a large sample of high-risk accounts from the AI core
-        live_networks = get_top_suspicious_networks(top_n=1000)
-        if not live_networks:
-            return {}
 
-        account_ids = [network["account_id"] for network in live_networks]
+@app.get("/statistics/summary", tags=["Statistics"])
+def summary() -> dict[str, Any]:
+    c = predictor.core()
+    ds = load()
+    flagged = c.flagged()
+    monitored = int(c.is_customer.sum())
+    return {
+        "accounts_monitored": monitored,
+        "accounts_flagged": int(len(flagged)),
+        "flagged_rate": float(len(flagged) / monitored),
+        "transactions_analysed": int(len(ds.transactions)),
+        "value_at_risk": float(ds.features.loc[flagged, "total_amount_in"].sum()),
+        "high_novelty": int((c.novelty[c.customers] >= 0.99).sum()),
+    }
 
-        # 2. Query Neo4j to count states directly
-        query = """
-        UNWIND $account_ids AS acc_id
-        MATCH (a:Account {account_id: acc_id})
-        WHERE a.state IS NOT NULL
-        RETURN a.state AS state, COUNT(*) AS count
-        """
 
-        with driver.session() as session:
-            results = session.run(query, account_ids=account_ids)
-            state_counts = {record["state"]: record["count"] for record in results}
-
-        return state_counts
-
-    except Exception as e:
-        logging.exception("Error fetching heatmap data")
-        raise HTTPException(status_code=500, detail="Error processing heatmap data.")
-    
-# backend/main.py
-
-@app.get("/network/{account_id}/illicit-transactions", tags=["Networks"])
-def get_account_transactions(account_id: str):
-    """
-    Retrieves incoming and outgoing transactions for a specific account.
-    """
-    query = """
-    MATCH (a:Account {account_id: $acc_id})
-    // Find transactions where this account is either the source or target
-    MATCH (source:Account)-[r:TRANSFER]->(target:Account)
-    WHERE source = a OR target = a
-    RETURN 
-        source.account_id AS from_account, 
-        target.account_id AS to_account, 
-        r.amount_inr AS amount,
-        // You can add more properties like transaction id, timestamp, etc.
-        r.timestamp AS date
-    ORDER BY r.timestamp DESC
-    LIMIT 25
-    """
-    try:
-        with driver.session() as session:
-            result = session.run(query, acc_id=account_id)
-            transactions = [
-                {
-                    "from": record["from_account"],
-                    "to": record["to_account"],
-                    "amount": record["amount"],
-                    "date": record["date"]
-                } for record in result
-            ]
-            return {"transactions": transactions}
-    except Exception as e:
-        print(f"Error fetching transactions for {account_id}: {e}")
-        raise HTTPException(status_code=500, detail="Error querying transactions.")
+@app.get("/accounts/search", tags=["Networks"])
+def search(q: str = Query(..., min_length=2), limit: int = Query(10, ge=1, le=50)) -> list[dict[str, Any]]:
+    c = predictor.core()
+    q_up = q.upper()
+    hits = [a for a in c.customers if q_up in a.upper()][:limit]
+    return [{"account_id": a, "risk_score": float(c.risk[a]), "pattern_type": c.pattern_of(a)} for a in hits]

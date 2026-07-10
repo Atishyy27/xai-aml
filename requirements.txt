@@ -1,17 +1,21 @@
+# Runtime
 fastapi==0.116.1
 uvicorn[standard]==0.35.0
-neo4j==5.28.2
-faker==25.0.0
-numpy==1.26.4
-pandas==2.3.2
-scikit-learn==1.7.1
+pandas==2.3.3
+numpy==2.2.4
+networkx==3.3
+scikit-learn==1.7.0
 shap==0.48.0
-scipy==1.15.3
-torchdata==0.7.1
-pyyaml==6.0.2
-pydantic==2.11.7
-tqdm==4.67.1
-psutil==7.0.0
-# Use these exact versions for compatibility on Windows/CPU
-torch==2.1.2
-dgl==1.1.2
+joblib==1.5.1
+torch==2.8.0
+
+# Synthetic data generation (SynthDataGen/generate_data.py only)
+faker==25.0.0
+
+# Removed:
+#   neo4j  -- the graph is built in-process from the CSVs; the Aura instance in
+#             .env no longer resolves and nothing queries Cypher any more.
+#   dgl    -- the GCN it backed was loaded but never called, and DGL publishes no
+#             wheel for this Python/torch pair on Windows. models/classifier.py
+#             replaces it with a gradient-boosted tree over the same graph
+#             features (held-out macro-F1 0.90).

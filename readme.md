@@ -2,169 +2,200 @@
 ### An Explainable AI Framework for Detecting and Dismantling Financial Laundering Networks
 
 [![Python](https://img.shields.io/badge/Python-3.10+-blue?logo=python&logoColor=white)](https://www.python.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
-[![React](https://img.shields.io/badge/React-18+-61DAFB?logo=react&logoColor=black)](https://reactjs.org/)
-[![Neo4j](https://img.shields.io/badge/Neo4j-5-008CC1?logo=neo4j&logoColor=white)](https://neo4j.com/)
-[![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-EE4C2C?logo=pytorch&logoColor=white)](https://pytorch.org/)
-[![DGL](https://img.shields.io/badge/DGL-1.1+-F47A22?logo=dgl&logoColor=white)](https://www.dgl.ai/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.116-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](https://react.dev/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.8-EE4C2C?logo=pytorch&logoColor=white)](https://pytorch.org/)
+[![SHAP](https://img.shields.io/badge/SHAP-0.48-8A2BE2)](https://shap.readthedocs.io/)
 
-Project SENTINEL is a full-stack application designed to combat financial crime. It leverages a hybrid, two-stage AI pipeline to first identify anomalous accounts and then detect entire criminal networks within vast transaction graphs. Crucially, it provides human-readable explanations for its findings, bridging the gap between complex AI and actionable intelligence for investigators.
+SENTINEL flags accounts involved in money laundering, names the typology, and shows an
+investigator *why* — with real SHAP attribution over the model that produced the score.
 
----
-## Table of Contents
-* [About The Project](#about-the-project)
-* [Key Features](#key-features)
-* [Detailed Documentation](#detailed-documentation)
-* [Getting Started: A Step-by-Step Guide](#getting-started-a-step-by-step-guide)
-* [Project Structure](#project-structure)
-
----
-## About The Project
-
-This project addresses a critical challenge in law enforcement: the lack of transparency in AI-driven security tools. An alert from a "black box" model is not enough to build a case. SENTINEL is built on the philosophy of **"Intelligence, not just Data,"** providing investigators with not only *what* is suspicious, but *why*.
-
-### System Architecture
-```mermaid
-graph TD
-    subgraph "A: Data Generation Pipeline"
-        A1[SynthDataGen Scripts] --> A2{Accounts & Transactions CSVs};
-    end
-    subgraph "B: Local Setup & Training"
-        A2 --> B1[Neo4j DB Loader];
-        B1 --> B2[(Local Neo4j Database)];
-        B2 --> B3[Feature Engineering];
-        B3 --> B4[Model Training];
-        B4 --> B5{AI Model Artifacts};
-    end
-    subgraph "C: Live Application"
-        C1[Frontend UI <br>(React)] <--> C2[Backend API <br>(FastAPI)];
-        C2 <--> B2;
-        B5 --> C2;
-    end
-```
-
-
-## Key Features
-**Hybrid Two-Stage AI Core:** Combines an unsupervised Autoencoder for individual anomaly detection with a supervised Graph Neural Network (GCN) for high-accuracy network classification.
-
-**Graph-Based Detection:** Utilizes a Neo4j graph database to natively model and analyze the complex relationships and money flows that define modern laundering schemes.
-
-**Explainable AI (XAI) Engine:** Integrates the SHAP library to provide clear, feature-based explanations for every prediction, making the AI's decisions transparent and trustworthy for investigators.
-
-**Realistic Synthetic Data:** Features a sophisticated data generation pipeline that simulates a financial ecosystem by injecting research-backed laundering typologies (Smurfing, Layering, and Mule Activity).
-
-**Interactive Investigator UI:** A React-based frontend with interactive graph visualizations that allow investigators to intuitively explore and understand suspicious financial networks.
+Everything runs offline from the CSVs in `SynthDataGen/`. No database to provision.
 
 ---
 
-## Detailed Documentation
-
-For a deeper dive into the technical design, methodology, and research basis for each component of the project, please refer to the documents below:
-
-- [**Synthetic Dataset Generation](https://www.google.com/search?q=./Docs/Dataset_Generation.md):** The methodology for creating our high-fidelity, graph-structured financial dataset.
-- [**AI Core Design](https://www.google.com/search?q=./Docs/AI_Core.md):** A detailed specification of our two-stage, hybrid, and explainable AI pipeline.
-- [**Backend API Design](https://www.google.com/search?q=./Docs/backend.md):** The API contract and architecture for our FastAPI-based service.
-- [**Frontend UI Design](https://www.google.com/search?q=./Docs/Frontend.md):** The component breakdown and UX philosophy for the investigator's dashboard.
-
----
-
-## Getting Started: A Step-by-Step Guide
-
-Follow these steps to set up and run the entire application on your local machine.
-
-### 📋 Prerequisites
-
-- [Git](https://git-scm.com/)
-- [Python 3.10+](https://www.python.org/downloads/)
-- [Node.js v18+](https://nodejs.org/)
-- [Neo4j Desktop](https://neo4j.com/download/)
-
-### ⚙️ Installation & Setup
-
-**1. Clone the Repository & Setup Python Environment**
+## Quick start
 
 ```bash
+pip install -r requirements.txt
 
-git clone https://github.com/Atishyy27/xai-aml.git
-cd xai-aml
+# Train both models (~1 min on CPU). Writes to artifacts/.
+python -m models.anomaly
+python -m models.classifier
 
-# Create and activate a Python virtual environment
-python -m venv venv
-# On Windows:
-.\venv\Scripts\activate
-# On macOS/Linux:
-source venv/bin/activate
-# Install all required Python packages
-pip install -r requirements.txt`
+# API on :8000  (first request warms the models, ~25s)
+uvicorn backend.main:app --reload
+
+# UI on :5200
+cd frontend && npm install && npm run dev
 ```
 
-**2. Setup Frontend Environment**
-
-```bash
-# Navigate to the frontend directory
-cd frontend
-# Install Node.js dependencies
-npm install
-# Return to the root directory
-cd ..
-```
-
-**3. Setup Database & Environment File**
-
-- Launch **Neo4j Desktop**, create a new local database, set a password, and **start the database**.
-- In the project's root folder, create a `.env` file by copying the `.env.example` template.
-- Fill in your `.env` file with your local Neo4j database credentials (URI, user, and password).
-
-**4. Generate Data & Train Models**
-
-- This crucial step runs all the necessary Python scripts in order. Make sure your `venv` is active and your Neo4j database is running.
-```bash
-# 1. Generate synthetic accounts.csv and transactions.csv
-python SynthDataGen/generate_data.py
-
-# 2. Load the CSVs into your Neo4j database
-python SynthDataGen/load_to_neo4j.py
-
-# 3. Create the feature set from the graph data
-python models/feature_engineering.py
-
-# 4. Train the AI models and create .pkl and .pth files
-python models/train_autoencoder.py
-python models/train_gcn.py
-````
-
-**5. Run the Application**
-
-- You will need **two separate terminals** for this step.
-- **In Terminal 1 (Backend):**
-    - Make sure you are in the project root and your `venv` is active.
-    - Start the FastAPI server:Bash
-        
-        `uvicorn backend.main:app --reload`
-        
-- **In Terminal 2 (Frontend):**
-    - Navigate to the frontend directory: `cd frontend`
-    - Start the React development server:Bash
-        
-        `npm run dev`
-        
-
-**6. Access the Application**
-
-- Once both servers are running, open your browser and navigate to **`http://localhost:5173`**.
+> **Port note.** Vite's default 5173 falls inside a Windows reserved range on some
+> machines (`netsh interface ipv4 show excludedportrange protocol=tcp`). The dev
+> script uses 5200; the API allows both origins.
 
 ---
 
-## Project Structure
+## How it works
 
 ```
-.├── backend/            # FastAPI backend source code
-├── Docs/               # Detailed design documents
-├── frontend/           # React frontend source code
-├── models/             # AI model training and inference scripts
-├── SynthDataGen/       # Synthetic data generation scripts
-├── .env.example        # Environment variable template
-├── .gitignore          # Files and folders to ignore
-├── requirements.txt    # Python dependencies
-└── README.md           # You are here*
+SynthDataGen/*.csv
+      │
+      ├─ models/dataset.py          in-memory graph (10,363 nodes / 50,917 edges)
+      │                              + the 9 aggregate account features
+      │
+      ├─ models/graph_features.py   26 behavioural features per account
+      │                              (channel mix, pass-through ratio, burstiness,
+      │                               counterparty spread, reciprocity)
+      │
+      ├─ models/classifier.py       ← risk score + typology       [PRIMARY]
+      ├─ models/anomaly.py          ← novelty score               [SECONDARY]
+      └─ models/predictor.py        ← inference + SHAP, consumed by backend/
 ```
+
+### Risk score and typology — the primary signal
+
+A gradient-boosted tree (`HistGradientBoostingClassifier`) over the 26 behavioural
+features, predicting `NONE | MULE | SMURFING | LAYERING`. The displayed risk score is
+`1 − P(NONE)`.
+
+Held-out (25% stratified split, 2,591 accounts):
+
+| Class | Precision | Recall | F1 | Support |
+|---|---|---|---|---|
+| NONE | 1.00 | 1.00 | 1.00 | 2507 |
+| MULE | 0.82 | 0.90 | 0.86 | 10 |
+| SMURFING | 0.82 | 0.82 | 0.82 | 44 |
+| LAYERING | 0.93 | 0.90 | 0.92 | 30 |
+
+**Macro-F1 0.90**, accuracy 0.993. As a binary detector the risk score reaches
+**ROC-AUC 0.99**, PR-AUC 0.97, precision@top-1% = 1.00.
+
+MULE's support is only 10 accounts in the test split, so its per-class numbers are
+noisy — read them with that in mind.
+
+### Novelty — the secondary signal
+
+The autoencoder (9→6→3→6→9) from the original design, retrained on features that match
+the current data. It is **not** the detector, and the code says so.
+
+Trained to convergence, reconstruction error is a weak global ranker: ROC-AUC **0.49**.
+Autoencoders reconstruct anomalies about as well as everything else once they have the
+capacity. What it *is* good for is the tail — the top 1% of reconstruction error is
+**10.2× enriched** for known-illicit accounts, which is how an unlabelled typology would
+first surface. It ships as a "novelty" column, not a risk score.
+
+An earlier under-trained checkpoint scored 0.65 AUC. Shipping that checkpoint would have
+been tuning on the evaluation metric, so it was not shipped.
+
+### Explanations
+
+`shap.TreeExplainer` over the classifier — exact, not sampled, a few ms per account.
+
+Attribution is taken against the `NONE` class and negated: a feature that pushes the
+model *away* from `NONE` is exactly a feature that raises risk. So the chart explains the
+number on screen rather than some correlated proxy. Values are in classifier margin
+(log-odds) units and are **signed** — factors that *lower* risk render on the cool pole
+of a diverging axis.
+
+---
+
+## Deployment
+
+The API and the UI deploy separately.
+
+```
+Vercel  ──────────────►  Hugging Face Space
+React UI    CORS         FastAPI, port 7860
+                         models baked in at build
+```
+
+**API — Hugging Face Spaces (Docker SDK).** `Dockerfile` trains both models during
+the build, so the image is self-contained and its metrics are the ones above. Set
+one variable in the Space settings:
+
+| Variable | Value |
+|---|---|
+| `ALLOWED_ORIGINS` | `https://<your-app>.vercel.app` (comma-separated for several) |
+
+Any `*.vercel.app` origin is allowed by regex so preview deployments work without
+re-pinning each commit's subdomain. Local dev origins are always allowed.
+
+**UI — Vercel.** Set the project root to `frontend/`. One required variable:
+
+| Variable | Value |
+|---|---|
+| `VITE_API_URL` | `https://<user>-<space>.hf.space` |
+
+Vite inlines this at build time. A production build without it falls back to
+`127.0.0.1:8000` — pointing every visitor's browser at their own machine — so the
+bundle logs a loud console error rather than failing as six simultaneous panel
+errors. `vercel.json` rewrites all paths to `index.html`; without it a refresh on
+`/network/ACC1234` 404s, because the router is a `BrowserRouter`.
+
+**Pushing to the Space.** `origin` is GitHub, and there is no CI wiring the two
+together, so a `git push` does not redeploy. Add the Space as a second remote:
+
+```bash
+git remote add space https://huggingface.co/spaces/<user>/<space>
+git push space main
+```
+
+Notes: the free tier sleeps, and a cold start pays container boot plus ~25s of
+model warmup, which is why the axios timeout is 60s. `torch` installs from the CPU
+wheel index — the default Linux wheel is a ~2.5GB CUDA build, to run one 9→6→3→6→9
+MLP that is scored once at startup.
+
+---
+
+## Design notes
+
+**Labels are per-leg, not per-endpoint.** A mule's cash-out leg terminates at a merchant.
+Crediting both endpoints with the `MULE` label taught the model that "receives card spend"
+means "launderer" — 363 of the 403 accounts it called mules were merchants, and three of
+them ranked in the top 15 most-suspicious. Cash-out legs (ATM withdrawal, card purchase)
+now credit the source only. Merchants stay on the graph as counterparties but never enter
+the investigable population.
+
+**Nothing in the feature set reads `is_illicit` or `illicit_pattern_type`.** Those are
+labels. They are used for training, for evaluation, and to mark known-bad edges red in the
+graph — never as model inputs.
+
+**The frontend formats; the backend doesn't.** Metrics travel as `{value, unit}`. When the
+API pre-formatted currency with Python's `f"{x:,.0f}"`, one card read `₹755,771` while the
+tile beside it read `₹7.4Cr`.
+
+**Charts follow the data's job.** Magnitude → sequential single hue. Polarity (SHAP) →
+diverging, warm/cool poles, neutral midpoint. Identity (typology) → a fixed categorical
+slot per typology, so filtering never repaints the survivors. Every chart has a table-view
+twin, and the palette was validated for colour-vision deficiency rather than eyeballed.
+
+---
+
+## Project structure
+
+```
+backend/main.py            FastAPI app — serves from the in-memory graph
+models/dataset.py          CSV → graph + features
+models/graph_features.py   behavioural features + ground-truth labels
+models/classifier.py       typology classifier (train + evaluate)
+models/anomaly.py          autoencoder novelty (train + evaluate)
+models/predictor.py        inference API + SHAP
+frontend/src/lib/          formatting + data-fetching hook
+frontend/src/components/   UI, charts under charts/, primitives under ui/
+SynthDataGen/              generator + accounts.csv + transactions.csv
+```
+
+## Known dead weight
+
+These are left in place from the Neo4j-backed design and are **not** on any runtime path:
+
+- `models/feature_engineering.py`, `models/train_gcn.py` — import `neo4j` / `dgl`
+- `models/train_autoencoder.py` — superseded by `models/anomaly.py`
+- `autoencoder.pth`, `gcn.pth`, `scaler.pkl`, `account_features.csv` at the repo root —
+  fit on a 50,000-account matrix that matches no file still in the repo. Recomputing those
+  features for the 10,000 real accounts reproduces the CSV's amount columns **0%** of the
+  time. The live artifacts live in `artifacts/`.
+- `neo4j/` — a local database directory; the Aura instance in `.env` no longer resolves.
+
+The GCN was loaded on import and never called. `models/classifier.py` replaces it.
