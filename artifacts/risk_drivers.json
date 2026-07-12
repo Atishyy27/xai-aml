@@ -1,0 +1,132 @@
+[
+  {
+    "feature": "throughput",
+    "mean_abs": 0.41298548521188033,
+    "mean_signed": 0.007081780142562296
+  },
+  {
+    "feature": "out_max",
+    "mean_abs": 0.09898220285635528,
+    "mean_signed": 0.0010004824433623959
+  },
+  {
+    "feature": "net_flow",
+    "mean_abs": 0.06037271439500605,
+    "mean_signed": -0.00404369279997623
+  },
+  {
+    "feature": "out_frac_transfer",
+    "mean_abs": 0.03280306053186235,
+    "mean_signed": -0.0036081546675128815
+  },
+  {
+    "feature": "out_peer_ratio",
+    "mean_abs": 0.01915427039056471,
+    "mean_signed": -0.0065367484324910475
+  },
+  {
+    "feature": "active_days",
+    "mean_abs": 0.01865293104644397,
+    "mean_signed": -0.001281000540005131
+  },
+  {
+    "feature": "in_total",
+    "mean_abs": 0.017726637179561383,
+    "mean_signed": 0.005818699441649584
+  },
+  {
+    "feature": "out_mean",
+    "mean_abs": 0.016381439191265144,
+    "mean_signed": 0.004046921529871462
+  },
+  {
+    "feature": "txns_per_day",
+    "mean_abs": 0.016336196688536045,
+    "mean_signed": -0.0014695702758082034
+  },
+  {
+    "feature": "out_std",
+    "mean_abs": 0.006959770046712313,
+    "mean_signed": -0.0026523233798619724
+  },
+  {
+    "feature": "in_median",
+    "mean_abs": 0.006616988301015373,
+    "mean_signed": 0.0005378486979321509
+  },
+  {
+    "feature": "in_count",
+    "mean_abs": 0.006278936077869785,
+    "mean_signed": 0.00022616996146410107
+  },
+  {
+    "feature": "in_max",
+    "mean_abs": 0.00581303411476299,
+    "mean_signed": 0.00042334610079149603
+  },
+  {
+    "feature": "out_median",
+    "mean_abs": 0.0053938050841572755,
+    "mean_signed": -2.1449721585207934e-05
+  },
+  {
+    "feature": "out_total",
+    "mean_abs": 0.0051464320170278455,
+    "mean_signed": -0.0008846920224786642
+  },
+  {
+    "feature": "in_mean",
+    "mean_abs": 0.004868048918259477,
+    "mean_signed": -0.0007206128782814565
+  },
+  {
+    "feature": "in_std",
+    "mean_abs": 0.004308668151701892,
+    "mean_signed": 0.0013529585991263425
+  },
+  {
+    "feature": "passthrough_ratio",
+    "mean_abs": 0.003662713647326122,
+    "mean_signed": 0.0012403139974192165
+  },
+  {
+    "feature": "out_count",
+    "mean_abs": 0.002067586226580645,
+    "mean_signed": -0.000337822313917473
+  },
+  {
+    "feature": "out_peers",
+    "mean_abs": 0.0018979699712000308,
+    "mean_signed": 0.0004962977285532328
+  },
+  {
+    "feature": "in_peers",
+    "mean_abs": 0.0013252287543559225,
+    "mean_signed": -0.00013840817403208745
+  },
+  {
+    "feature": "out_frac_purchase",
+    "mean_abs": 0.001026858602395515,
+    "mean_signed": 0.000252810669949476
+  },
+  {
+    "feature": "kyc_risk",
+    "mean_abs": 0.0,
+    "mean_signed": 0.0
+  },
+  {
+    "feature": "out_frac_atm_withdrawal",
+    "mean_abs": 0.0,
+    "mean_signed": 0.0
+  },
+  {
+    "feature": "in_peer_ratio",
+    "mean_abs": 0.0,
+    "mean_signed": 0.0
+  },
+  {
+    "feature": "reciprocal_edges",
+    "mean_abs": 0.0,
+    "mean_signed": 0.0
+  }
+]
