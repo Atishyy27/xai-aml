@@ -770,6 +770,19 @@ code {
   margin: 0;
 }
 
+/* Shown while the free API instance wakes from sleep (~50s). Without it a cold
+ * first load is a minute of spinners, which reads as a hang rather than a wait. */
+.wake-note {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--status-warning);
+  border-radius: var(--r-md);
+  padding: var(--sp-3) var(--sp-5);
+  margin: 0 var(--sp-5) var(--sp-4);
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
 .empty {
   color: var(--text-muted);
   font-size: 12px;

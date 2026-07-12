@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { getHeatmapData, getPatternStatistics, getSuspiciousNetworks, getSummary } from "../api";
+import { API_BASE, getHeatmapData, getPatternStatistics, getSuspiciousNetworks, getSummary } from "../api";
 import { useFetch } from "../lib/useFetch";
 import { Card, ErrorNote, Spinner, StatTile } from "./ui/Primitives";
 import AccountsTable from "./AccountsTable";
@@ -32,16 +32,29 @@ export default function Dashboard() {
   if (networks.error) {
     return (
       <ErrorNote onRetry={networks.refetch}>
-        Could not reach the API at <code>127.0.0.1:8000</code>. Start it with{" "}
-        <code>uvicorn backend.main:app --reload</code>.
+        Could not reach the API at <code>{API_BASE}</code>.
+        {import.meta.env.DEV && (
+          <>
+            {" "}
+            Start it with <code>uvicorn backend.main:app --reload</code>.
+          </>
+        )}
       </ErrorNote>
     );
   }
 
   const s = summary.data;
+  // The free instance sleeps; the first request of the day pays the wake.
+  const waking = summary.slow || networks.slow;
 
   return (
     <div className="page">
+      {waking && (
+        <p className="wake-note" role="status">
+          Waking the analysis server — it sleeps when idle on the free tier. This
+          first load can take up to a minute; everything after it is instant.
+        </p>
+      )}
       <div className="kpi-row">
         <StatTile
           hero

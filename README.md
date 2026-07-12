@@ -154,16 +154,22 @@ installs the runtime requirements and copies the committed artifacts — no torc
 training. `.github/workflows/deploy-hf-space.yml` mirrors `main` to a HF Space if you
 set `HF_TOKEN` (secret) and `HF_SPACE` (variable); it no-ops until then.
 
-**UI — Vercel.** Set the project root to `frontend/`. One required variable:
+**UI — Vercel.** Set the project root to `frontend/`. No environment variable is
+required: a production build defaults to the deployed API above. Point it elsewhere
+by setting `VITE_API_URL` (Vite inlines it at build time), which takes precedence.
 
-| Variable | Value |
-|---|---|
-| `VITE_API_URL` | your API URL, e.g. `https://xai-aml-final.onrender.com` |
+The default matters. Previously a production build with no `VITE_API_URL` fell back
+to `127.0.0.1:8000` — aiming every visitor's browser at *their own machine* — and the
+only symptom was all six panels erroring at once. The deployed bundle shipped that
+way. Production now falls back to the real API instead.
 
-Vite inlines this at build time. A production build without it falls back to
-`127.0.0.1:8000` — pointing every visitor's browser at their own machine — so the
-bundle logs a loud console error rather than failing as six simultaneous panel
-errors. `vercel.json` rewrites all paths to `index.html`; without it a refresh on
+Cold starts are visible, not hidden: the free instance sleeps, and the first request
+pays ~50s of container wake plus ~25s of model warmup (graph build + SHAP explainer).
+The axios timeout is 180s — a 60s timeout aborted the first load of the day before the
+API could answer — and the dashboard shows a "waking the server" note after 6s rather
+than a spinner that reads as a hang.
+
+`vercel.json` rewrites all paths to `index.html`; without it a refresh on
 `/network/ACC1234` 404s, because the router is a `BrowserRouter`.
 
 ---

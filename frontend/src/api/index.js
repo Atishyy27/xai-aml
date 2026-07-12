@@ -1,23 +1,26 @@
 import axios from "axios";
 
 const DEV_API = "http://127.0.0.1:8000";
-const baseURL = import.meta.env.VITE_API_URL ?? DEV_API;
+const PROD_API = "https://xai-aml-final.onrender.com";
 
-// A production bundle that falls back to localhost points every visitor's
-// browser at their own machine, and the only symptom is that all six panels
-// render an error state at once. Say so at build/boot time instead.
-if (import.meta.env.PROD && !import.meta.env.VITE_API_URL) {
-  console.error(
-    "[SENTINEL] VITE_API_URL is unset in a production build; API calls will " +
-      `go to ${DEV_API} and fail. Set it in the Vercel project's environment variables.`
-  );
-}
+// A production bundle falling back to localhost points every visitor's browser
+// at their own machine, and the only symptom is all six panels erroring at
+// once. So production falls back to the deployed API, not to DEV_API: the site
+// works whether or not VITE_API_URL is set, and setting it still wins.
+const baseURL = import.meta.env.VITE_API_URL ?? (import.meta.env.PROD ? PROD_API : DEV_API);
+
+// Exported so the UI can name the host it actually failed to reach, rather than
+// hardcoding the dev address into an error a production visitor might read.
+export const API_BASE = baseURL;
 
 const apiClient = axios.create({
-  // The Space sleeps on the free tier; a cold start pays the ~25s model warmup
-  // on top of container boot, which overruns a 30s timeout.
   baseURL,
-  timeout: 60000,
+  // Render's free instance sleeps. A cold start is ~50s of container wake before
+  // the app answers at all, and the first data request pays another ~25s of model
+  // warmup (graph build + SHAP explainer) on top. Measured: 63s just to reach
+  // /health on a sleeping instance -- a 60s timeout aborted the first load of the
+  // day before the API could ever reply.
+  timeout: 180000,
 });
 
 const get = async (url, params) => (await apiClient.get(url, { params })).data;
