@@ -389,6 +389,159 @@ def get_amount_profile() -> dict:
     }
 
 
+def simulate(cfg) -> dict:
+    """Generate a book the model has never seen, score it, and grade the result.
+
+    This is the only endpoint whose numbers are not guaranteed to flatter the
+    model. Everything else reports on the book the classifier was fitted to; this
+    fits nothing, trains nothing, and compares predictions against a ground truth
+    generated seconds ago. A bad score here is a real result, and it is reported
+    as one.
+
+    Stateless by construction: generate, score, explain, discard. Holding the book
+    on the server would mean a session store, a second copy of the data resident
+    between requests, and an OOM on a 512MB instance the moment two people opened
+    the page. Everything the UI needs comes back in one response.
+    """
+    from sklearn.metrics import average_precision_score, roc_auc_score
+
+    from . import simulator
+
+    ds, cfg = simulator.generate(cfg)
+    c = core()
+
+    # The same 26 features, computed the same way, then scored by the same fitted
+    # model. Nothing is refitted -- that is the whole experiment.
+    X = graph_features.build(ds)[c.feature_names]
+    proba = c.clf.predict_proba(X)
+    risk = pd.Series(1.0 - proba[:, c.none_idx], index=X.index)
+    proba_df = pd.DataFrame(proba, index=X.index, columns=c.classes)
+
+    truth = graph_features.labels(ds)
+
+    # Merchants are counterparties, not account-holders: they are on the graph so a
+    # mule's cash-out has somewhere to land, but they are never investigated, and
+    # scoring them would inflate every number here with 500 trivial true negatives.
+    customers = ds.accounts.index[ds.accounts["account_type"].ne("External")]
+    customers = X.index.intersection(customers)
+
+    r = risk[customers]
+    y_true = (truth[customers] != "NONE").astype(int)
+    y_pred = (r >= PATTERN_THRESHOLD).astype(int)
+
+    tp = int(((y_pred == 1) & (y_true == 1)).sum())
+    fp = int(((y_pred == 1) & (y_true == 0)).sum())
+    fn = int(((y_pred == 0) & (y_true == 1)).sum())
+    tn = int(((y_pred == 0) & (y_true == 0)).sum())
+
+    precision = tp / (tp + fp) if tp + fp else 0.0
+    recall = tp / (tp + fn) if tp + fn else 0.0
+    f1 = 2 * precision * recall / (precision + recall) if precision + recall else 0.0
+
+    # AUC is undefined on a single-class column -- which happens for real when the
+    # caller sets every crime slider to zero. That is a legitimate thing to try
+    # (it asks "does the model cry wolf on a clean book?"), so it must not 500.
+    both_classes = 0 < int(y_true.sum()) < len(y_true)
+    roc = float(roc_auc_score(y_true, r)) if both_classes else None
+    pr = float(average_precision_score(y_true, r)) if both_classes else None
+
+    # Per-typology recall: an aggregate can hide that the model catches every mule
+    # and misses every smurf, and those are different failures.
+    by_pattern = []
+    for p in ILLICIT_CLASSES:
+        actual = truth[customers] == p
+        n = int(actual.sum())
+        if not n:
+            continue
+        caught = int((y_pred[actual] == 1).sum())
+        # Of the ones it caught, did it name the right typology?
+        named = proba_df.loc[actual.index[actual], list(ILLICIT_CLASSES)].idxmax(axis=1)
+        by_pattern.append(
+            {
+                "pattern": p.title(),
+                "actual": n,
+                "caught": caught,
+                "recall": caught / n,
+                "named_correctly": int((named == p).sum()),
+            }
+        )
+
+    # The top of the queue, with its working shown: every feature the model read,
+    # what it contributed, and whether the call was right.
+    top_ids = r.sort_values(ascending=False).head(12).index
+    sv = np.asarray(c.explainer.shap_values(X.loc[top_ids]))
+    contrib = -sv[:, :, c.none_idx]
+
+    top = []
+    for k, acc in enumerate(top_ids):
+        order = np.argsort(-np.abs(contrib[k]))[:6]
+        actual = str(truth[acc])
+        predicted = (
+            str(proba_df.loc[acc, list(ILLICIT_CLASSES)].idxmax())
+            if risk[acc] >= PATTERN_THRESHOLD
+            else "NONE"
+        )
+        top.append(
+            {
+                "account_id": str(acc),
+                "risk_score": float(risk[acc]),
+                "predicted": predicted,
+                "actual": actual,
+                "correct": predicted == actual,
+                "state": str(ds.accounts.loc[acc, "state"]),
+                "contributions": [
+                    {
+                        "feature": c.feature_names[i],
+                        "label": LABELS.get(c.feature_names[i], _prettify(c.feature_names[i])),
+                        "definition": DEFINITIONS.get(c.feature_names[i], ""),
+                        "impact": float(contrib[k][i]),
+                        "value": float(X.loc[acc].iloc[i]),
+                    }
+                    for i in order
+                ],
+                # The raw ledger the features were computed from, so the reader can
+                # redo the arithmetic instead of taking the feature vector on trust.
+                "ledger": {
+                    f: float(X.loc[acc, f])
+                    for f in ("in_total", "out_total", "in_count", "out_count", "throughput",
+                              "passthrough_ratio", "out_peers", "active_days")
+                    if f in X.columns
+                },
+            }
+        )
+
+    tx = ds.transactions
+    return {
+        "config": {
+            "accounts": cfg.accounts,
+            "transactions": cfg.transactions,
+            "smurfing_ops": cfg.smurfing_ops,
+            "layering_chains": cfg.layering_chains,
+            "mule_ops": cfg.mule_ops,
+            "seed": cfg.seed,
+        },
+        "book": {
+            "accounts": int(len(customers)),
+            "transactions": int(len(tx)),
+            "illicit_transactions": int((tx["is_illicit"] == 1).sum()),
+            "criminal_accounts": int(y_true.sum()),
+        },
+        "detection": {
+            "precision": precision,
+            "recall": recall,
+            "f1": f1,
+            "roc_auc": roc,
+            "pr_auc": pr,
+            "caught": tp,
+            "missed": fn,
+            "false_alarms": fp,
+            "clean_and_cleared": tn,
+        },
+        "by_pattern": by_pattern,
+        "top": top,
+    }
+
+
 @functools.lru_cache(maxsize=1)
 def get_risk_drivers(top_n: int = 8) -> list[dict]:
     """Global SHAP importance -- the model's worldview, precomputed at train time.

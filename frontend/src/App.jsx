@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { BrowserRouter, Link, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Link, NavLink, Route, Routes } from "react-router-dom";
 import Dashboard from "./components/Dashboard";
 import NetworkView from "./components/NetworkView";
+import Simulator from "./components/Simulator";
 import { getModelCard } from "./api";
 import { useFetch } from "./lib/useFetch";
 
@@ -47,6 +48,17 @@ export default function App() {
             </span>
           </Link>
 
+          {/* The simulator is the only page that can contradict the others, so it
+              is reachable from every one of them. */}
+          <nav className="nav">
+            <NavLink to="/" end className={({ isActive }) => `nav__link ${isActive ? "is-on" : ""}`}>
+              Dashboard
+            </NavLink>
+            <NavLink to="/simulate" className={({ isActive }) => `nav__link ${isActive ? "is-on" : ""}`}>
+              Simulator
+            </NavLink>
+          </nav>
+
           <div className="topbar__right">
             <ModelCard />
             <button
@@ -63,6 +75,7 @@ export default function App() {
         <main>
           <Routes>
             <Route path="/" element={<Dashboard />} />
+            <Route path="/simulate" element={<Simulator />} />
             <Route path="/network/:networkId" element={<NetworkView />} />
           </Routes>
         </main>

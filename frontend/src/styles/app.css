@@ -296,9 +296,326 @@ code {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+/* ------------------------------------------------------------------ simulator */
+.grid--sim {
+  grid-template-columns: minmax(320px, 0.85fr) minmax(0, 1.6fr);
+}
+
+.nav {
+  display: flex;
+  gap: var(--sp-1);
+  margin-left: var(--sp-5);
+}
+.nav__link {
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-sm, 6px);
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  text-decoration: none;
+}
+.nav__link:hover {
+  background: var(--surface-2);
+}
+.nav__link.is-on {
+  background: var(--surface-2);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+.control {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+.control__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--sp-2);
+}
+.control__label {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+.control__value {
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+.control__hint {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+.control input[type="range"] {
+  width: 100%;
+  accent-color: var(--series-1);
+}
+.control__warn {
+  margin: var(--sp-4) 0 0;
+  padding: var(--sp-3);
+  border-left: 3px solid var(--status-warning);
+  background: var(--surface-2);
+  border-radius: var(--r-md);
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+}
+.controls__actions {
+  display: flex;
+  gap: var(--sp-2);
+  margin-top: var(--sp-5);
+}
+.btn--primary {
+  background: var(--series-1);
+  color: #fff;
+  border-color: transparent;
+}
+.btn--primary:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+/* The scorecard. Percentages first, then the counts they stand for -- a recall
+ * of 96% means nothing until you know it is 222 of 232. */
+.grade {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-5);
+}
+.grade__cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.grade__value {
+  font-size: 1.75rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.grade__label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+.grade__gloss {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
+.tally {
+  list-style: none;
+  margin: 0;
+  padding: var(--sp-3) 0 0;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-5);
+  font-size: 0.8125rem;
+}
+.tally__note {
+  color: var(--text-muted);
+}
+
+.verdict {
+  margin: 0 0 var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+/* A wrong call is rendered as loudly as a right one -- a scoreboard that can
+ * only go up is not evidence. */
+.verdict--ok {
+  border-left: 3px solid var(--status-good);
+}
+.verdict--bad {
+  border-left: 3px solid var(--status-critical);
+}
+
+.recall {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+.recall__row {
+  display: grid;
+  grid-template-columns: minmax(90px, 24%) 1fr auto;
+  align-items: center;
+  gap: var(--sp-3);
+}
+.recall__label {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: 0.8125rem;
+}
+.recall__track {
+  background: var(--div-mid);
+  border-radius: 4px;
+  height: 12px;
+  overflow: hidden;
+}
+.recall__bar {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+}
+.recall__value {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------------------------------------------ show the working */
+.working__picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-4);
+}
+.chip {
+  padding: var(--sp-1) var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  font-size: 0.75rem;
+  font-family: var(--font-mono, monospace);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.chip.is-on {
+  background: var(--surface-2);
+  border-color: var(--series-1);
+  color: var(--text-primary);
+}
+.chip--wrong {
+  border-color: var(--status-critical);
+}
+
+.working__head {
+  margin: var(--sp-5) 0 var(--sp-1);
+  font-size: 0.875rem;
+  font-weight: 650;
+}
+.working__lede {
+  margin: 0 0 var(--sp-3);
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+}
+
+.ledger {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: var(--sp-3);
+  margin: 0;
+  padding: var(--sp-3);
+  background: var(--surface-2);
+  border-radius: var(--r-md);
+}
+.ledger dt {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+.ledger dd {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.derive {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+.derive__row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+}
+.derive__formula {
+  /* Shrink to the formula. As a block-level child of a flex column it stretched,
+     and the global `code` background turned that into a full-width grey bar. */
+  align-self: flex-start;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+.derive__sub {
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.derive__why {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.contrib {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.contrib__row {
+  display: grid;
+  grid-template-columns: minmax(90px, 26%) 1fr auto;
+  align-items: center;
+  gap: var(--sp-3);
+}
+.contrib__label {
+  font-size: 0.8125rem;
+  overflow-wrap: anywhere;
+}
+/* A diverging axis with a fixed midpoint: sign is legible from the geometry, not
+ * from the hue alone. */
+.contrib__axis {
+  position: relative;
+  height: 14px;
+  background: var(--div-mid);
+  border-radius: 4px;
+}
+.contrib__axis::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  border-left: 1px solid var(--gridline);
+}
+.contrib__bar {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 3px;
+}
+.contrib__value {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
 /* ------------------------------------------------------- section (below fold) */
 .section {
-  margin-top: var(--sp-7, var(--sp-6));
+  margin-top: var(--sp-6);
 }
 .section__title {
   margin: 0;
@@ -315,7 +632,8 @@ code {
 @media (max-width: 1100px) {
   .grid,
   .grid--investigate,
-  .grid--halves {
+  .grid--halves,
+  .grid--sim {
     grid-template-columns: minmax(0, 1fr);
   }
 }
@@ -906,7 +1224,7 @@ code {
 }
 .drivers__label {
   font-size: 0.8125rem;
-  color: var(--text-2, var(--text-muted));
+  color: var(--text-secondary);
   overflow-wrap: anywhere;
 }
 .drivers__track {

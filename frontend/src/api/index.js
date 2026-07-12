@@ -24,6 +24,7 @@ const apiClient = axios.create({
 });
 
 const get = async (url, params) => (await apiClient.get(url, { params })).data;
+const post = async (url, body) => (await apiClient.post(url, body)).data;
 
 export const getSummary = () => get("/statistics/summary");
 export const getModelCard = () => get("/model-card");
@@ -44,3 +45,8 @@ export const getRiskClock = () => get("/statistics/clock");
 export const getChannelMix = () => get("/statistics/channels");
 export const getAmountProfile = () => get("/statistics/amounts");
 export const getRiskDrivers = (limit = 8) => get("/statistics/drivers", { limit });
+
+/* Generate a book the model has never seen and score it. Generation, feature
+ * engineering and SHAP all happen server-side in one request -- there is no
+ * session, so nothing is held between calls. */
+export const runSimulation = (config) => post("/simulate", config);

@@ -122,9 +122,45 @@ illicit amounts do cluster where retail traffic does not, but the generator enco
 reporting threshold, so reading intent into it would be a story about the data rather
 than a fact in it.
 
+### The simulator — the part that can prove the model wrong
+
+Every other screen reports on the book the classifier was fitted to, so a reader has no
+way to tell a model that *learned* laundering from one that *memorised* 10,000 rows. SHAP
+over a frozen dataset explains a result nobody can challenge.
+
+So `/simulate` lets the reader write the book. They choose the size, the crime mix and the
+seed; the server generates it, scores it with the **already-trained** classifier, and grades
+the predictions against a ground truth that did not exist when the request arrived. Nothing
+is retrained. It runs in ~600ms and holds ~300MB, inside the 512MB tier.
+
+On a book it has never seen (3,000 accounts, 15,000 transactions, seed 7):
+
+| | |
+|---|---|
+| **Caught** (recall) | 96% — 222 of 232 criminals |
+| **Correct** (precision) | 91% — 23 false alarms |
+| **ROC-AUC** | 0.997 |
+| Mule / Layering / Smurfing recall | 100% / 100% / 93% |
+
+The numbers are free to come out badly, and they do: **smurfing is the weak typology**, and
+on a book with *zero* crime the model still flags ~0.7% of honest accounts. Both are
+rendered as loudly as the wins — a scoreboard that can only go up is not evidence.
+
+The generator mirrors `SynthDataGen/generate_data.py`'s three topologies exactly (fan-in
+smurfing, multi-hop layering, cash-out mules terminating at merchants). If it drifted, the
+model would be graded on a crime it was never trained to recognise and a poor score would
+mean nothing. It generates only the columns the model reads — no names, PANs or IPs — which
+is why it needs no Faker and adds nothing to the runtime requirements.
+
 ### Explanations
 
 `shap.TreeExplainer` over the classifier — exact, not sampled, a few ms per account.
+
+**Show the working.** A SHAP bar saying "Pass-Through Ratio contributed +2.1" is a number
+about a number. So the simulator renders each derived feature as its actual formula from
+`models/graph_features.py` with the account's real values substituted — `min(₹9.1L, ₹9.2L) /
+max(₹9.1L, ₹9.2L) = 0.996` — above the raw ledger it was computed from. The arithmetic is
+checkable by hand. An explanation you cannot check is just a second thing to trust.
 
 Attribution is taken against the `NONE` class and negated: a feature that pushes the
 model *away* from `NONE` is exactly a feature that raises risk. So the chart explains the

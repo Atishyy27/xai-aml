@@ -8,15 +8,18 @@ replaced by networkx traversals.
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import sys
+import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, Field
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
@@ -237,6 +240,51 @@ def drivers(limit: int = Query(8, ge=3, le=26)) -> list[dict[str, Any]]:
     """Global SHAP importance -- what the model weighs across the whole book, as
     opposed to /account/{id}/explanation, which says why one account scored."""
     return predictor.get_risk_drivers(top_n=limit)
+
+
+class SimulationRequest(BaseModel):
+    """Bounds are enforced here AND clamped in the simulator. Belt and braces on
+    purpose: these numbers decide how much memory a request allocates, and the
+    instance has 512MB with no swap -- an OOM does not fail the request, it kills
+    the process for everyone."""
+
+    accounts: int = Field(3000, ge=200, le=6000)
+    transactions: int = Field(15000, ge=500, le=30000)
+    smurfing_ops: int = Field(8, ge=0, le=40)
+    layering_chains: int = Field(12, ge=0, le=60)
+    mule_ops: int = Field(12, ge=0, le=60)
+    seed: int = Field(7, ge=0, le=999_999)
+
+
+# One simulation at a time. Each holds a whole book plus its feature matrix in
+# memory; two concurrent runs on the free instance is how you OOM the process.
+# Queue rather than reject -- the run takes ~2s, so waiting is cheaper than a
+# 503 the user has to understand.
+_sim_lock = asyncio.Lock()
+
+
+@app.post("/simulate", tags=["Simulator"])
+async def simulate(req: SimulationRequest) -> dict[str, Any]:
+    """Generate a book the model has never seen, score it, and grade the result
+    against the ground truth we just wrote.
+
+    Nothing is retrained. The classifier fitted to SynthDataGen's book is asked to
+    find crime in a book that did not exist when the request arrived, and the
+    precision/recall that come back are real -- including when they are bad.
+    """
+    from models.simulator import SimConfig
+
+    cfg = SimConfig(**req.model_dump())
+
+    async with _sim_lock:
+        # Generation + feature engineering + SHAP is CPU-bound and blocking. Run it
+        # off the event loop, or a 2s simulation freezes /health and Render's
+        # health check starts failing mid-demo.
+        started = time.perf_counter()
+        result = await asyncio.to_thread(predictor.simulate, cfg)
+        result["elapsed_ms"] = round((time.perf_counter() - started) * 1000)
+
+    return result
 
 
 @app.get("/accounts/search", tags=["Networks"])
