@@ -1,10 +1,24 @@
 import React, { useMemo, useState } from "react";
-import { API_BASE, getHeatmapData, getPatternStatistics, getSuspiciousNetworks, getSummary } from "../api";
+import {
+  API_BASE,
+  getAmountProfile,
+  getChannelMix,
+  getHeatmapData,
+  getPatternStatistics,
+  getRiskClock,
+  getRiskDrivers,
+  getSuspiciousNetworks,
+  getSummary,
+} from "../api";
 import { useFetch } from "../lib/useFetch";
 import { Card, ErrorNote, Spinner, StatTile } from "./ui/Primitives";
 import AccountsTable from "./AccountsTable";
 import PatternShare from "./charts/PatternShare";
 import GeoRisk from "./charts/GeoRisk";
+import RiskClock from "./charts/RiskClock";
+import ChannelMix from "./charts/ChannelMix";
+import RiskDrivers from "./charts/RiskDrivers";
+import AmountProfile from "./charts/AmountProfile";
 import { formatCompactCurrency, formatCount, formatPercent, PATTERN_SLOT } from "../lib/format";
 
 const TYPOLOGIES = ["ALL", "MULE", "SMURFING", "LAYERING"];
@@ -17,6 +31,14 @@ export default function Dashboard() {
   const networks = useFetch(() => getSuspiciousNetworks(100), []);
   const patterns = useFetch(() => getPatternStatistics(), []);
   const geo = useFetch(() => getHeatmapData(), []);
+
+  // Book-level intelligence. Static over the dataset, so these are fetched once
+  // and never refetched by the filter row above -- the filters scope the flagged
+  // account list, not the behaviour of the whole book.
+  const clock = useFetch(() => getRiskClock(), []);
+  const channels = useFetch(() => getChannelMix(), []);
+  const drivers = useFetch(() => getRiskDrivers(8), []);
+  const amounts = useFetch(() => getAmountProfile(), []);
 
   // One filter row scopes everything below it; charts do not carry their own.
   const filtered = useMemo(() => {
@@ -132,6 +154,39 @@ export default function Dashboard() {
           </Card>
         </div>
       </div>
+
+      {/* Book-level intelligence. Everything above scores accounts; this describes
+          the behaviour those scores are drawn from -- the context an investigator
+          reads a single case against. Deliberately below the fold: it is the
+          second question, not the first. */}
+      <section className="section">
+        <h2 className="section__title">How laundering behaves</h2>
+        <p className="section__lede">
+          Across all {s ? formatCount(s.transactions_analysed) : "—"} transactions in the book, not
+          just the flagged accounts.
+        </p>
+
+        <div className="grid grid--halves">
+          <Card
+            title="When it happens"
+            subtitle="Illicit lift by hour of day"
+          >
+            {clock.loading && !clock.data ? <Spinner /> : <RiskClock data={clock.data} />}
+          </Card>
+
+          <Card title="How it moves" subtitle="Channel fingerprint by typology">
+            {channels.loading && !channels.data ? <Spinner /> : <ChannelMix data={channels.data} />}
+          </Card>
+
+          <Card title="What the model weighs" subtitle="Global SHAP importance, all 10,000 accounts">
+            {drivers.loading && !drivers.data ? <Spinner /> : <RiskDrivers data={drivers.data} />}
+          </Card>
+
+          <Card title="How much it moves" subtitle="Transaction size, illicit vs licit">
+            {amounts.loading && !amounts.data ? <Spinner /> : <AmountProfile data={amounts.data} />}
+          </Card>
+        </div>
+      </section>
     </div>
   );
 }

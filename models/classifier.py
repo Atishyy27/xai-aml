@@ -27,6 +27,12 @@ from .dataset import ROOT, load
 ARTIFACT = ROOT / "artifacts" / "pattern_classifier.joblib"
 METRICS = ROOT / "artifacts" / "pattern_metrics.json"
 
+# Global SHAP importance: mean |contribution toward risk| per feature, across
+# every account. It is a property of (model, dataset) -- both frozen -- so it is
+# computed once here rather than on demand. Doing it at serving time would cost
+# ~9s of the boot budget to produce a constant. See predictor.get_risk_drivers.
+DRIVERS = ROOT / "artifacts" / "risk_drivers.json"
+
 CLASSES = ["NONE", "MULE", "SMURFING", "LAYERING"]
 SEED = 42
 
@@ -78,9 +84,35 @@ def train(save: bool = True) -> dict:
         ).fit(X, y)
         joblib.dump({"model": clf_full, "features": list(X.columns)}, ARTIFACT)
         METRICS.write_text(json.dumps(metrics, indent=2))
-        print(f"\nsaved -> {ARTIFACT.name}, {METRICS.name}")
+        DRIVERS.write_text(json.dumps(_risk_drivers(clf_full, X), indent=2))
+        print(f"\nsaved -> {ARTIFACT.name}, {METRICS.name}, {DRIVERS.name}")
 
     return metrics
+
+
+def _risk_drivers(model, X: pd.DataFrame) -> list[dict]:
+    """What the model learned, globally -- the counterpart to the per-account
+    SHAP chart. Same attribution as models/predictor.py: taken against the NONE
+    class and negated, so a positive value means 'pushes toward risk'.
+
+    `mean_abs` ranks the features by how much they move the score at all.
+    `mean_signed` says which way they move it on average -- a feature can be a
+    strong driver (high mean_abs) while being risk-*lowering* on balance.
+    """
+    import shap
+
+    sv = np.asarray(shap.TreeExplainer(model).shap_values(X))  # (n, features, classes)
+    contrib = -sv[:, :, list(model.classes_).index("NONE")]
+
+    drivers = [
+        {
+            "feature": f,
+            "mean_abs": float(np.abs(contrib[:, i]).mean()),
+            "mean_signed": float(contrib[:, i].mean()),
+        }
+        for i, f in enumerate(X.columns)
+    ]
+    return sorted(drivers, key=lambda d: -d["mean_abs"])
 
 
 def load_model():

@@ -291,10 +291,31 @@ code {
 .grid__graph .card__body {
   padding: var(--sp-3);
 }
+/* Two-up, equal. Collapses to one column with the rest of the grid below. */
+.grid--halves {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+/* ------------------------------------------------------- section (below fold) */
+.section {
+  margin-top: var(--sp-7, var(--sp-6));
+}
+.section__title {
+  margin: 0;
+  font-size: 1.0625rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.section__lede {
+  margin: var(--sp-1) 0 var(--sp-4);
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
 
 @media (max-width: 1100px) {
   .grid,
-  .grid--investigate {
+  .grid--investigate,
+  .grid--halves {
     grid-template-columns: minmax(0, 1fr);
   }
 }
@@ -768,6 +789,156 @@ code {
 }
 .error-note p {
   margin: 0;
+}
+
+/* ---------------------------------------------------------------------------
+ * Book-level intelligence charts.
+ *
+ * Bars are thin, anchored to the baseline, with 4px rounded data-ends. Adjacent
+ * fills are separated by a 2px surface gap rather than a stroke, matching the
+ * stacked bar in PatternShare.
+ * ------------------------------------------------------------------------- */
+
+/* RiskClock -- 24 hourly bars with an explicit 1.0x baseline rule. */
+.clock {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 180px;
+  padding-top: var(--sp-2);
+}
+/* The baseline is the whole point of the chart: it is what "no more criminal
+ * than any other hour" looks like. Drawn as a rule, not implied by the axis. */
+.clock::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: var(--baseline);
+  border-top: 1px dashed var(--gridline);
+  pointer-events: none;
+}
+.clock__col {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+}
+.clock__bar {
+  width: 100%;
+  border-radius: 4px 4px 0 0;
+  transition: opacity 0.12s ease;
+}
+/* A floor on the bar height would draw a mark for a value of exactly zero --
+ * "rare" and "never" would look identical, and in these charts the zeroes are
+ * the finding (no mule ever layers; no illicit transaction is under 100 rupees).
+ * The floor applies only to values that are genuinely non-zero but tiny. */
+.clock__bar[data-nonzero="true"],
+.grouped__bar[data-nonzero="true"] {
+  min-height: 2px;
+}
+.clock__bar:hover {
+  opacity: 0.75;
+}
+.clock__axis {
+  display: flex;
+  justify-content: space-between;
+  margin-top: var(--sp-2);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Grouped bars -- shared by ChannelMix and AmountProfile. */
+.grouped {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--sp-4);
+  height: 180px;
+  padding-top: var(--sp-2);
+}
+.grouped__group {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-width: 0;
+}
+.grouped__bars {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 2px; /* the 2px surface gap between adjacent fills */
+}
+.grouped__bar {
+  flex: 1;
+  max-width: 26px;
+  border-radius: 4px 4px 0 0;
+  transition: opacity 0.12s ease;
+}
+.grouped__bar:hover {
+  opacity: 0.75;
+}
+.grouped__label {
+  margin-top: var(--sp-2);
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+/* RiskDrivers -- horizontal bars; length is magnitude, hue is direction. */
+.drivers {
+  list-style: none;
+  margin: 0;
+  padding: var(--sp-2) 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.drivers__row {
+  display: grid;
+  grid-template-columns: minmax(90px, 30%) 1fr auto;
+  align-items: center;
+  gap: var(--sp-3);
+}
+.drivers__label {
+  font-size: 0.8125rem;
+  color: var(--text-2, var(--text-muted));
+  overflow-wrap: anywhere;
+}
+.drivers__track {
+  background: var(--div-mid);
+  border-radius: 4px;
+  height: 14px;
+  overflow: hidden;
+}
+.drivers__bar {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  min-width: 2px;
+}
+.drivers__value {
+  font-size: 0.75rem;
+  color: var(--text-muted); /* text ink, never the series colour */
+  font-variant-numeric: tabular-nums;
+}
+
+/* A note that sits where a legend would, for single-series charts. */
+.chart__note {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* Wide tables (the 24-row clock) scroll inside the card rather than pushing the
+ * page sideways. */
+.table-scroll {
+  max-height: 260px;
+  overflow: auto;
 }
 
 /* Shown while the free API instance wakes from sleep (~50s). Without it a cold

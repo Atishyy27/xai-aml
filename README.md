@@ -101,6 +101,27 @@ first surface. It ships as a "novelty" column, not a risk score.
 An earlier under-trained checkpoint scored 0.65 AUC. Shipping that checkpoint would have
 been tuning on the evaluation metric, so it was not shipped.
 
+### What laundering actually looks like
+
+Book-level intelligence, computed across all 51,144 transactions rather than scored per
+account. It is the context an investigator reads a single case against.
+
+| Panel | Finding |
+|---|---|
+| **When it happens** (`/statistics/clock`) | Illicit activity is **9.2× over-represented at midnight** and ~8× from 01:00–03:00. Reported as *lift over the licit baseline*, not raw volume — there are 45× more licit transactions, so their diurnal shape would otherwise swamp the signal. |
+| **How it moves** (`/statistics/channels`) | Each typology has a clean channel fingerprint. Layering and smurfing are **100% transfer**; a mule is *defined* by the cash-out, so it inverts — **97%** of mule transactions leave as ATM cash or card spend. |
+| **What the model weighs** (`/statistics/drivers`) | Global SHAP importance. **Money Throughput moves the score 4.2× more than any other feature** — the model's single strongest lever. |
+| **How much it moves** (`/statistics/amounts`) | Median illicit transaction ₹8.3K against ₹91 for licit — a **91× gap**. Over half the retail book sits under ₹100, where laundering essentially never appears. |
+
+Two candidate panels were **cut for failing the evidence bar**, which is the point of
+listing them: *shared-IP collusion clusters* (no IP in the book is used by more than one
+account, so there is nothing to cluster) and *laundering rings* (314 of the 379 flagged
+accounts fall in a single connected component — an artefact of the generator, not a
+finding). The amount panel likewise stops short of calling the pattern "structuring":
+illicit amounts do cluster where retail traffic does not, but the generator encodes no
+reporting threshold, so reading intent into it would be a story about the data rather
+than a fact in it.
+
 ### Explanations
 
 `shap.TreeExplainer` over the classifier — exact, not sampled, a few ms per account.
@@ -153,6 +174,12 @@ A `Dockerfile` is also provided (for HF Spaces or Render-as-Docker): same idea, 
 installs the runtime requirements and copies the committed artifacts — no torch, no
 training. `.github/workflows/deploy-hf-space.yml` mirrors `main` to a HF Space if you
 set `HF_TOKEN` (secret) and `HF_SPACE` (variable); it no-ops until then.
+
+`.github/workflows/keep-warm.yml` pings `/health` every 10 minutes so the instance
+never reaches the 15-minute sleep threshold, which is what makes the deployed link
+respond instantly instead of after a minute. GitHub's scheduler is best-effort, so the
+interval is a margin, not a guarantee; `workflow_dispatch` lets you kick it by hand
+before a demo.
 
 **UI — Vercel.** Set the project root to `frontend/`. No environment variable is
 required: a production build defaults to the deployed API above. Point it elsewhere

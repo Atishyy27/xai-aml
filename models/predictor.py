@@ -28,6 +28,7 @@ labelled "SHAP simulation". Both are gone.
 from __future__ import annotations
 
 import functools
+import json
 
 import numpy as np
 import pandas as pd
@@ -36,11 +37,23 @@ import shap
 from . import classifier, graph_features
 from .dataset import FEATURE_DEFINITIONS, FEATURE_LABELS, ROOT, load
 
+# The model is trained on the 26 behavioural features from graph_features, but the
+# label/definition lookup only ever covered the 9 aggregate ones in dataset.py --
+# so every SHAP tooltip in the UI was blank, including the top driver's. Merge
+# both: graph_features wins, since those are the names the model actually scores.
+LABELS = {**FEATURE_LABELS, **graph_features.LABELS}
+DEFINITIONS = {**FEATURE_DEFINITIONS, **graph_features.DEFINITIONS}
+
 # The autoencoder's novelty score is precomputed at train time (see
 # models/anomaly.py) and read from here. The serving process never imports
 # torch -- its ~500MB resident set does not fit the 512MB free tier, and the
 # score is static anyway.
 NOVELTY_PATH = ROOT / "artifacts" / "novelty.csv"
+
+# Global SHAP importance, precomputed at train time for the same reason: it is a
+# constant over a frozen (model, dataset), and computing it here would add ~9s to
+# every boot. Written by models/classifier.py.
+DRIVERS_PATH = ROOT / "artifacts" / "risk_drivers.json"
 
 # Below this, the classifier is not confident enough to name a typology.
 PATTERN_THRESHOLD = 0.50
@@ -142,8 +155,8 @@ def get_prediction_and_explanation(account_id: str) -> dict:
     feature_contributions = [
         {
             "feature": c.feature_names[i],
-            "label": FEATURE_LABELS.get(c.feature_names[i], _prettify(c.feature_names[i])),
-            "definition": FEATURE_DEFINITIONS.get(c.feature_names[i], ""),
+            "label": LABELS.get(c.feature_names[i], _prettify(c.feature_names[i])),
+            "definition": DEFINITIONS.get(c.feature_names[i], ""),
             "impact": float(contrib[i]),
             "value": float(row.iloc[0, i]),
         }
@@ -245,3 +258,159 @@ def get_state_distribution() -> dict[str, int]:
     c = core()
     states = c.ds.accounts.loc[c.flagged(), "state"]
     return states[states != "Unknown"].value_counts().to_dict()
+
+
+# --------------------------------------------------------------------------
+# Book-level intelligence.
+#
+# These describe the *labelled* transaction book -- what laundering looks like
+# across all 51k transactions -- rather than scoring one account. They are the
+# context an investigator reads a single case against.
+#
+# Every figure below is computed from the data, and only findings the data
+# actually supports are exposed. Two candidates were cut for failing that bar:
+# shared-IP collusion clusters (no IP in the book is used by more than one
+# account) and laundering "rings" (314 of the 379 flagged accounts fall into a
+# single connected component -- an artefact of the generator, not a finding).
+# --------------------------------------------------------------------------
+
+
+@functools.lru_cache(maxsize=1)
+def get_hourly_profile() -> list[dict]:
+    """Illicit activity by hour of day, as a lift over the licit baseline.
+
+    Lift, not raw count: there are 50k licit transactions and ~1.1k illicit ones,
+    so a raw histogram of illicit volume mostly re-plots when *anyone* transacts.
+    Lift asks the sharper question -- given a transaction at 03:00, how much more
+    likely is it to be illicit than the book's base rate? The answer is ~8x.
+    """
+    tx = core().ds.transactions
+    hour = tx["timestamp"].dt.hour
+    illicit = tx["is_illicit"] == 1
+
+    # Share of each population falling in this hour. Guard the divide: an hour
+    # with no licit traffic would otherwise be an infinite lift.
+    licit_share = hour[~illicit].value_counts(normalize=True)
+    illicit_share = hour[illicit].value_counts(normalize=True)
+
+    out = []
+    for h in range(24):
+        lic = float(licit_share.get(h, 0.0))
+        ill = float(illicit_share.get(h, 0.0))
+        out.append(
+            {
+                "hour": h,
+                "illicit": int((illicit & (hour == h)).sum()),
+                "licit": int((~illicit & (hour == h)).sum()),
+                "lift": float(ill / lic) if lic > 0 else None,
+            }
+        )
+    return out
+
+
+@functools.lru_cache(maxsize=1)
+def get_channel_mix() -> list[dict]:
+    """How each typology moves money -- its channel fingerprint.
+
+    This is the clearest signal in the book. Layering and smurfing are pure
+    account-to-account transfer; a mule is defined by the cash-out, so its mix is
+    the mirror image (ATM + card). Ordinary activity sits between the two.
+    """
+    tx = core().ds.transactions
+    mix = pd.crosstab(tx["illicit_pattern_type"], tx["transaction_type"], normalize="index")
+    counts = tx["illicit_pattern_type"].value_counts()
+
+    channels = list(mix.columns)
+    order = ["NONE", *ILLICIT_CLASSES]
+    return [
+        {
+            "typology": t.title() if t != "NONE" else "No pattern",
+            "transactions": int(counts[t]),
+            "channels": {ch: float(mix.loc[t, ch]) for ch in channels},
+        }
+        for t in order
+        if t in mix.index
+    ]
+
+
+@functools.lru_cache(maxsize=1)
+def get_amount_profile() -> dict:
+    """Transaction size, illicit vs licit.
+
+    Deliberately NOT framed as threshold structuring. Illicit amounts do cluster
+    in bands the licit book barely occupies, but the generator encodes no
+    reporting threshold, so reading that as deliberate evasion would be a story
+    about the data rather than a fact in it. Reported as what it is: laundering
+    moves money in far larger units than retail activity does.
+    """
+    tx = core().ds.transactions
+    amt = tx["amount_inr"]
+    illicit = tx["is_illicit"] == 1
+
+    def stats(s: pd.Series) -> dict:
+        return {
+            "median": float(s.median()),
+            "mean": float(s.mean()),
+            "p90": float(s.quantile(0.90)),
+            "max": float(s.max()),
+            "count": int(len(s)),
+        }
+
+    # Log-spaced bands: the two populations differ by ~2 orders of magnitude, so
+    # linear bins would put all licit traffic in one bar.
+    #
+    # The bands travel as raw numeric edges, not as "<Rs100" strings. Currency
+    # rendering is the frontend's job and lives in exactly one place
+    # (frontend/src/lib/format.js) -- the same rule the metrics payload follows.
+    edges = [0, 100, 1_000, 10_000, 100_000, float("inf")]
+    band = pd.cut(amt, bins=edges, right=False)
+    cats = list(band.cat.categories)
+
+    n_ill = int(illicit.sum())
+    n_lic = int((~illicit).sum())
+
+    return {
+        "illicit": stats(amt[illicit]),
+        "licit": stats(amt[~illicit]),
+        "bands": [
+            {
+                "from": float(cat.left),
+                # None, not `inf`: JSON has no infinity, and json.dumps emits a bare
+                # `Infinity` token that JSON.parse rejects. An open-ended top band
+                # is the honest encoding anyway.
+                "to": None if cat.right == float("inf") else float(cat.right),
+                # Share *within* each population, so the 45x size difference between
+                # the two does not flatten the illicit curve into the axis.
+                "illicit": float((band[illicit] == cat).sum() / n_ill),
+                "licit": float((band[~illicit] == cat).sum() / n_lic),
+            }
+            for cat in cats
+        ],
+    }
+
+
+@functools.lru_cache(maxsize=1)
+def get_risk_drivers(top_n: int = 8) -> list[dict]:
+    """Global SHAP importance -- the model's worldview, precomputed at train time.
+
+    The per-account chart says why *this* account scored. This says what the model
+    weighs across the whole book, which is the question a reviewer asks first.
+    """
+    if not DRIVERS_PATH.exists():
+        raise FileNotFoundError(
+            f"{DRIVERS_PATH.name} not found. Train first:\n"
+            "    python -m models.anomaly && python -m models.classifier"
+        )
+    drivers = json.loads(DRIVERS_PATH.read_text())
+    return [
+        {
+            "feature": d["feature"],
+            "label": LABELS.get(d["feature"], _prettify(d["feature"])),
+            "definition": DEFINITIONS.get(d["feature"], ""),
+            "importance": d["mean_abs"],
+            # Which way it pushes on average. A driver can be strong and still be
+            # risk-lowering on balance, so the sign is not decoration.
+            "direction": "raises" if d["mean_signed"] >= 0 else "lowers",
+        }
+        for d in drivers[:top_n]
+    ]

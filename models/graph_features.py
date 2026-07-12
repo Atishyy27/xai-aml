@@ -16,6 +16,72 @@ from .dataset import Dataset
 CHANNELS = ["TRANSFER", "PURCHASE", "ATM_WITHDRAWAL"]
 
 
+# What each feature is called, and what it means, in an investigator's words.
+#
+# These live here, beside the code that computes them, so a feature cannot be
+# added without a name. They matter more than they look: the SHAP panel is the
+# product -- an attribution the reader cannot interpret is not an explanation --
+# and until these existed, every tooltip on it was blank, including the one on
+# `throughput`, which the model weighs 4x more heavily than anything else.
+LABELS = {
+    "out_count": "Transfers Sent",
+    "out_total": "Total Sent",
+    "out_mean": "Avg. Sent",
+    "out_median": "Median Sent",
+    "out_max": "Largest Sent",
+    "out_std": "Variability of Sent",
+    "in_count": "Transfers Received",
+    "in_total": "Total Received",
+    "in_mean": "Avg. Received",
+    "in_median": "Median Received",
+    "in_max": "Largest Received",
+    "in_std": "Variability of Received",
+    "kyc_risk": "KYC Risk Rating",
+    "throughput": "Money Throughput",
+    "net_flow": "Net Flow",
+    "passthrough_ratio": "Pass-Through Ratio",
+    "out_frac_transfer": "Share Sent as Transfer",
+    "out_frac_purchase": "Share Sent as Card Spend",
+    "out_frac_atm_withdrawal": "Share Cashed Out at ATM",
+    "out_peers": "Distinct Recipients",
+    "in_peers": "Distinct Senders",
+    "out_peer_ratio": "Recipient Spread",
+    "in_peer_ratio": "Sender Spread",
+    "active_days": "Days Active",
+    "txns_per_day": "Transactions per Day",
+    "reciprocal_edges": "Reciprocal Links",
+}
+
+DEFINITIONS = {
+    "out_count": "Number of transactions sent.",
+    "out_total": "Total value sent.",
+    "out_mean": "Average value of a sent transaction.",
+    "out_median": "Median value of a sent transaction. Unlike the mean, one large transfer does not move it.",
+    "out_max": "The single largest transaction sent.",
+    "out_std": "Spread of sent amounts. Near zero means near-identical transfers -- the signature of structuring.",
+    "in_count": "Number of transactions received.",
+    "in_total": "Total value received.",
+    "in_mean": "Average value of a received transaction.",
+    "in_median": "Median value of a received transaction.",
+    "in_max": "The single largest transaction received.",
+    "in_std": "Spread of received amounts.",
+    "kyc_risk": "The bank's own risk rating at onboarding. The only feature not derived from behaviour.",
+    "throughput": "Total value moved, in plus out. The model's strongest single signal: laundering is defined by moving money, and a mule pushes far more value than its profile can justify.",
+    "net_flow": "Received minus sent. Near zero on a high throughput implies pass-through behaviour.",
+    "passthrough_ratio": "How much of what arrives is forwarded on. Approaches 1.0 for a mule or a layering hop, which exist to relay value, not to hold it.",
+    "out_frac_transfer": "Share of outgoing value moved as account-to-account transfer. Layering and smurfing are effectively 100% transfer.",
+    "out_frac_purchase": "Share of outgoing value spent on a card.",
+    "out_frac_atm_withdrawal": "Share of outgoing value taken out as ATM cash. The mule signature: it is where the money leaves the banking system.",
+    "out_peers": "How many distinct accounts this one paid.",
+    "in_peers": "How many distinct accounts paid this one.",
+    "out_peer_ratio": "Distinct recipients per outgoing transaction. Near 1.0 means every payment went to a different account -- money fanned out, not a repeat bill.",
+    "in_peer_ratio": "Distinct senders per incoming transaction. High values mean funds collected from many sources.",
+    "active_days": "Days between the first and last transaction seen.",
+    "txns_per_day": "Transaction rate over the active window. Activity compressed into a short burst is a laundering tell.",
+    "reciprocal_edges": "Counterparties this account both paid and was paid by. Value looping back is characteristic of layering.",
+}
+
+
 def _side_stats(tx: pd.DataFrame, key: str, ids: pd.Index, prefix: str) -> pd.DataFrame:
     g = tx.groupby(key)["amount_inr"]
     out = pd.DataFrame(index=ids)

@@ -212,6 +212,33 @@ def summary() -> dict[str, Any]:
     }
 
 
+@app.get("/statistics/clock", tags=["Statistics"])
+def clock() -> list[dict[str, Any]]:
+    """Illicit activity by hour of day, as a lift over the licit baseline.
+    Laundering concentrates in the small hours: ~8-9x lift between 00:00 and 03:00."""
+    return predictor.get_hourly_profile()
+
+
+@app.get("/statistics/channels", tags=["Statistics"])
+def channels() -> list[dict[str, Any]]:
+    """Each typology's channel fingerprint. Layering and smurfing are pure
+    transfer; a mule is defined by its cash-out, so it inverts (ATM + card)."""
+    return predictor.get_channel_mix()
+
+
+@app.get("/statistics/amounts", tags=["Statistics"])
+def amounts() -> dict[str, Any]:
+    """Transaction size, illicit vs licit, in log-spaced bands."""
+    return predictor.get_amount_profile()
+
+
+@app.get("/statistics/drivers", tags=["XAI"])
+def drivers(limit: int = Query(8, ge=3, le=26)) -> list[dict[str, Any]]:
+    """Global SHAP importance -- what the model weighs across the whole book, as
+    opposed to /account/{id}/explanation, which says why one account scored."""
+    return predictor.get_risk_drivers(top_n=limit)
+
+
 @app.get("/accounts/search", tags=["Networks"])
 def search(q: str = Query(..., min_length=2), limit: int = Query(10, ge=1, le=50)) -> list[dict[str, Any]]:
     c = predictor.core()

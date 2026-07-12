@@ -1,0 +1,41 @@
+# Render's free instance sleeps after ~15 minutes idle, and waking it costs ~50s
+# of container boot plus ~25s of model warmup. That is a minute of spinners for
+# whoever opens the link first -- which, at a demo, is the person you least want
+# to keep waiting.
+#
+# So: ping /health often enough that it never sleeps. /health does not touch the
+# models, so this is a cheap request; the point is only to reset the idle timer.
+#
+# GitHub's scheduler is best-effort and runs late under load, so the interval is
+# 10 minutes rather than 14 -- a couple of skipped runs still land inside the
+# 15-minute window. It is not a guarantee, it is a large safety margin.
+name: Keep the API warm
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch: # so it can be kicked by hand right before a demo
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping /health
+        run: |
+          URL="${{ vars.API_URL || 'https://xai-aml-final.onrender.com' }}/health"
+
+          # A sleeping instance can take ~60s to answer, which is not a failure --
+          # it is exactly the case this workflow exists to prevent. Allow for it.
+          code=$(curl -sS -o /tmp/body -w '%{http_code}' --max-time 120 "$URL") || {
+            echo "::warning::Could not reach $URL (curl failed). The instance may be down."
+            exit 0
+          }
+
+          echo "$URL -> $code"
+          cat /tmp/body; echo
+
+          if [ "$code" != "200" ]; then
+            echo "::warning::$URL returned $code, expected 200."
+          fi
+          # Never fail the build. A red X every time Render hiccups would train us
+          # to ignore this workflow, and it is not gating anything.

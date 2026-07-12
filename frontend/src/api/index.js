@@ -37,3 +37,10 @@ export const getTransactions = (accountId, { illicitOnly = false, limit = 50 } =
   get(`/network/${accountId}/transactions`, { illicit_only: illicitOnly, limit });
 
 export const searchAccounts = (q) => get("/accounts/search", { q });
+
+/* Book-level intelligence: what laundering looks like across all 51k
+ * transactions, as opposed to how one account scored. */
+export const getRiskClock = () => get("/statistics/clock");
+export const getChannelMix = () => get("/statistics/channels");
+export const getAmountProfile = () => get("/statistics/amounts");
+export const getRiskDrivers = (limit = 8) => get("/statistics/drivers", { limit });
