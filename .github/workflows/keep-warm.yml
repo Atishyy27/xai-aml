@@ -1,14 +1,24 @@
-# Render's free instance sleeps after ~15 minutes idle, and waking it costs ~50s
-# of container boot plus ~25s of model warmup. That is a minute of spinners for
-# whoever opens the link first -- which, at a demo, is the person you least want
-# to keep waiting.
+# Render's free instance sleeps after ~15 minutes idle, and waking it costs ~50s of
+# container boot. This asks for a ping every 10 minutes to stay under that threshold.
 #
-# So: ping /health often enough that it never sleeps. /health does not touch the
-# models, so this is a cheap request; the point is only to reset the idle timer.
+# READ THIS BEFORE TRUSTING IT: the schedule below does not work, and the failure is
+# silent -- every run goes green, because a run that never fires cannot go red.
+# Measured over one 15-hour window: 89 runs due, 8 delivered (~9%), gaps up to 3.5
+# hours. GitHub throttles high-frequency cron on shared runners and the requested
+# interval is a hint, not a contract. Tightening it to */5 makes the throttling worse,
+# not better. Against a 15-minute sleep window, ~2-hour delivery keeps nothing warm.
 #
-# GitHub's scheduler is best-effort and runs late under load, so the interval is
-# 10 minutes rather than 14 -- a couple of skipped runs still land inside the
-# 15-minute window. It is not a guarantee, it is a large safety margin.
+# It stays enabled because a ping that does land is free and harmless. But the ways to
+# actually get a warm instance are:
+#   1. workflow_dispatch below -- manual runs are NOT throttled. Warm in ~75s. Use this
+#      before a demo. (Or just open the site yourself two minutes early; same effect.)
+#   2. An external pinger (cron-job.org / UptimeRobot / Better Stack, all free) hitting
+#      /health every 5 minutes. That one genuinely works, and it needs an account rather
+#      than a commit, which is why it is not in this repo.
+#
+# The real safety net is in the UI, not here: the axios timeout is 180s and the
+# dashboard shows a "waking the server" note after 6s, so a cold visitor waits through
+# a wait instead of staring at what looks like a hang.
 name: Keep the API warm
 
 on:

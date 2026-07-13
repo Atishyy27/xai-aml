@@ -203,19 +203,36 @@ python -m models.anomaly && python -m models.classifier
 A manually-created service does **not** auto-adopt `render.yaml`; set the two commands
 under **Settings** or re-create it via **New → Blueprint**. CORS reads `ALLOWED_ORIGINS`
 and allows any `*.vercel.app` by regex; local dev origins are always allowed. The free
-instance sleeps, so a cold start pays ~25s of first-request warmup (graph build + SHAP
-explainer) — hence the 60s axios timeout.
+instance sleeps after ~15 minutes idle; waking it costs ~50s of container boot, which is
+why the axios timeout is 180s (see *Cold starts* below).
 
 A `Dockerfile` is also provided (for HF Spaces or Render-as-Docker): same idea, it
 installs the runtime requirements and copies the committed artifacts — no torch, no
 training. `.github/workflows/deploy-hf-space.yml` mirrors `main` to a HF Space if you
 set `HF_TOKEN` (secret) and `HF_SPACE` (variable); it no-ops until then.
 
-`.github/workflows/keep-warm.yml` pings `/health` every 10 minutes so the instance
-never reaches the 15-minute sleep threshold, which is what makes the deployed link
-respond instantly instead of after a minute. GitHub's scheduler is best-effort, so the
-interval is a margin, not a guarantee; `workflow_dispatch` lets you kick it by hand
-before a demo.
+**Keeping it warm — and what actually works.** `.github/workflows/keep-warm.yml` asks
+for a `/health` ping every 10 minutes. **GitHub does not honour that**, and it is worth
+being precise about how badly: over one 15-hour window the schedule should have fired 89
+times and fired **8**, with gaps up to 3.5 hours. GitHub deprioritises high-frequency
+cron on shared runners, and no interval you write fixes it — asking for `*/5` gets you
+throttled harder, not less. Against a 15-minute sleep threshold, a job that lands every
+~2 hours keeps nothing warm. The workflow was measured, not trusted, and it does not do
+the job it was written to do.
+
+What does work:
+
+- **`workflow_dispatch`.** A hand-triggered run is *not* throttled — it fires in seconds
+  and the instance is warm ~75s later. Kick it before a demo, or just open the link
+  yourself two minutes early. This is the reliable path and it is the one to use.
+- **An external uptime pinger** (cron-job.org, UptimeRobot, Better Stack — all free, all
+  honour 1–5 minute intervals). Point one at `/health` and the instance genuinely never
+  sleeps. This is the only *hands-off* fix; it lives outside this repo because it needs
+  an account, not a commit.
+
+The scheduled cron is left enabled because a ping that lands is still a ping, and
+`workflow_dispatch` shares the file. It is a bonus, not the mechanism. The mechanism for
+a cold visitor is the next paragraph: the UI is built to survive the wait.
 
 **UI — Vercel.** Set the project root to `frontend/`. No environment variable is
 required: a production build defaults to the deployed API above. Point it elsewhere
